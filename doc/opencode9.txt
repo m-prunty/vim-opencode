@@ -20,8 +20,9 @@ The UI is added in layers: prompt and context workflows first, then a split
 panel, permissions and diff review.
 
 This help file describes the current walking skeleton: configuration, command
-dispatch, server discovery, transport and SSE events. Commands marked with a
-phase such as (P2) are reserved and report that they are not implemented yet.
+dispatch, server discovery, transport, SSE events and context-aware prompts.
+Commands marked with a phase such as (P3) are reserved and report that they
+are not implemented yet.
 
 ==============================================================================
 2. REQUIREMENTS                                             *opencode9-requirements*
@@ -61,9 +62,12 @@ server [action]         Manage discovery and the connection. Actions:
                           start       Run the configured server_command.
                           stop        Stop a server started by this plugin.
 session ...             List, create, open or delete conversations. (P4)
-prompt [text]           Send a prompt with @ placeholders. (P2)
-ask [text]              Prompt for text and send it. (P2)
-operator                Send the selected range through 'operatorfunc'. (P2)
+prompt [text]           Send a prompt with @ placeholders. With no text, open
+                        the ask input. A trailing ... opens ask with the text
+                        before it as the initial value.
+ask [text]              Open the ask input with optional initial text.
+operator [text]         Set 'operatorfunc' and wait for a motion; the selected
+                        range is sent with the text (default @this).
 context ...             Inspect or clear captured context. (P2)
 toggle                  Toggle the conversation panel. (P3)
 open ...                Open the input, output or panel window. (P3)
@@ -87,6 +91,38 @@ Server discovery tries, in order:
 Every candidate is probed with GET /api/info before it becomes current. The
 SSE stream is then opened on GET /api/event. Lost streams reconnect with
 exponential backoff until :Opencode server disconnect or Vim exits.
+
+                                                           *opencode9-context*
+Context placeholders are expanded in prompt and ask text before submission.
+They are matched longest-first, so @buffers is not mistaken for @buffer.
+
+  @this         The selected range, or the cursor location.
+  @buffer       The current buffer path (or full text for a scratch buffer).
+  @buffers      All listed file-backed buffers.
+  @visible      The visible line range in every window.
+  @quickfix     The quickfix list locations.
+  @marks        Global marks A-Z.
+  @diagnostics  Quickfix entries for the current buffer or selected range.
+
+File-backed locations use OpenCode's path format:
+  path:L12:C4-L18:C9
+Linewise ranges omit the column numbers. If a placeholder has no value it is
+left in the prompt unchanged. Diagnostics are quickfix-backed because Vim has
+no vim.diagnostic equivalent; populate the quickfix list from your build,
+grep, or lint workflow.
+
+Prompt flow:
+
+1. Capture the command range, visual marks, cursor, buffer and cwd.
+2. Highlight the range, then expand placeholders.
+3. Resolve the most recent non-archived root session for the cwd with
+   GET /api/session?directory=...&order=desc&parentID=null.
+4. POST /api/session/{id}/prompt with the rendered text.
+5. On success clear the highlight. On failure restore the visual selection
+   and leave the buffer unchanged.
+
+The optional start command is polled for five seconds. Use
+:Opencode server status to inspect the active URL, version and stream state.
 
 ==============================================================================
 4. CONFIGURATION                                         *opencode9-configuration*
@@ -191,8 +227,11 @@ The stream currently emits the V2 types, including:
   OpencodeEvent:permission.asked
   OpencodeEvent:question.asked
 
-The plugin also emits a local OpencodeEvent:server.disconnected event with a
-message when the stream is lost. It fires before a reconnect attempt.
+The plugin also emits local events:
+
+  OpencodeEvent:server.disconnected  Stream lost; before a reconnect attempt.
+  OpencodeEvent:prompt.sent          Prompt POST succeeded; data.sessionID.
+  OpencodeEvent:prompt.failed        Prompt failed; data.message.
 
 ==============================================================================
 6. FUNCTIONS                                                 *opencode9-functions*
