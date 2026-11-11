@@ -12,9 +12,10 @@ The project follows a V2-first, layered design:
 
 ## Status
 
-Early development. The current tree implements the P0 walking skeleton:
-plugin loading, configuration, command dispatch, health checks and a headless
-test harness. Network, prompt and panel features arrive in later phases.
+Early development. The current tree implements P0 and P1: plugin loading,
+configuration, command dispatch, health checks, curl-backed HTTP transport,
+SSE event dispatch, server discovery and reconnecting connections. Prompt,
+context and panel features arrive in later phases.
 
 See `docs/analysis/vim9-opencode-implementation-analysis.json` for the
 implementation plan and `doc/opencode9.txt` for user documentation.
@@ -44,12 +45,14 @@ runtime plugin/opencode9.vim
 ```vim
 :Opencode health
 :Opencode version
+:Opencode server connect
+:Opencode server status
 :Opencode help
 ```
 
 ## Development
 
-Run the P0 smoke test from the repository root:
+Run the headless smoke tests from the repository root:
 
 ```sh
 ./test/run.sh
