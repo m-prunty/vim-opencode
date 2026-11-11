@@ -7,6 +7,9 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
+PROMPTS = []
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -24,6 +27,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/info"):
             self.send_json(200, {"version": "2.0.0", "healthy": True})
+        elif self.path.startswith("/api/session"):
+            self.send_json(200, {"data": [{"id": "s1", "title": "Fixture", "time": {"updated": 1}}]})
+        elif self.path.startswith("/api/prompts"):
+            self.send_json(200, {"data": PROMPTS})
         elif self.path.startswith("/api/error"):
             self.send_json(400, {"error": "bad request"})
         elif self.path.startswith("/api/event"):
@@ -57,7 +64,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length)
-        if self.path.startswith("/api/echo"):
+        if self.path.startswith("/api/session/") and self.path.endswith("/prompt"):
+            try:
+                payload = json.loads(body.decode("utf-8"))
+            except ValueError:
+                payload = {}
+            PROMPTS.append(payload)
+            self.send_json(200, {"ok": True})
+        elif self.path.startswith("/api/echo"):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
