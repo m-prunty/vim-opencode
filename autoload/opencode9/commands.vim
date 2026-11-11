@@ -3,7 +3,9 @@ vim9script
 # Command table, parsing and dispatch for :Opencode.
 
 import autoload 'opencode9/config.vim' as config
+import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/health.vim' as health
+import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/util.vim' as util
 
 const COMMANDS: dict<dict<any>> = {
@@ -11,7 +13,7 @@ const COMMANDS: dict<dict<any>> = {
   version: {phase: 'P0', usage: 'version', description: 'Show plugin and Vim versions', implemented: true},
   health: {phase: 'P0', usage: 'health', description: 'Run environment checks', implemented: true},
   config: {phase: 'P0', usage: 'config [path|validate]', description: 'Show or validate configuration', implemented: true},
-  server: {phase: 'P1', usage: 'server [status|connect|disconnect|start|stop]', description: 'Manage the OpenCode connection', implemented: false},
+  server: {phase: 'P1', usage: 'server [status|connect|disconnect|start|stop]', description: 'Manage the OpenCode connection', implemented: true},
   session: {phase: 'P4', usage: 'session [list|new|open|rename|delete|fork]', description: 'Manage conversations', implemented: false},
   prompt: {phase: 'P2', usage: 'prompt [text]', description: 'Send a prompt with context placeholders', implemented: false},
   ask: {phase: 'P2', usage: 'ask [text]', description: 'Prompt for text and send it', implemented: false},
@@ -57,6 +59,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       health.Run()
     elseif name ==# 'config'
       ShowConfig(rest)
+    elseif name ==# 'server'
+      Server(rest)
     elseif has_key(COMMANDS, name)
       NotImplemented(name, COMMANDS[name].phase)
     else
@@ -158,6 +162,74 @@ def ShowConfig(rest: string)
   else
     echomsg util.JsonEncode(value)
   endif
+enddef
+
+def Server(rest: string)
+  var argument = substitute(rest, '^\s*\(.\{-}\)\s*$', '\1', '')
+  if argument ==# '' || argument ==# 'status'
+    ShowServerStatus()
+  elseif argument ==# 'connect'
+    ConnectServer()
+  elseif argument ==# 'disconnect'
+    DisconnectServer()
+  elseif argument ==# 'start'
+    StartServer()
+  elseif argument ==# 'stop'
+    StopServer()
+  else
+    util.EchoError('unknown server command "' .. argument .. '"; try :Opencode help')
+  endif
+enddef
+
+def ShowServerStatus()
+  var conn = server.Current()
+  if type(conn) == v:t_none
+    echomsg 'opencode9: not connected'
+    return
+  endif
+  var status = server.Status()
+  echomsg printf('opencode9: %s version=%s connected=%s directory=%s',
+    status.url,
+    status.version ==# '' ? 'unknown' : status.version,
+    status.connected ? 'yes' : 'no',
+    status.directory)
+enddef
+
+def ConnectServer()
+  discovery.Connect({
+    on_success: (conn: any, info: any) => ServerConnected(conn),
+    on_error: (message: string) => util.EchoError(message),
+  })
+  echomsg 'opencode9: discovering an OpenCode server...'
+enddef
+
+def ServerConnected(conn: any)
+  echomsg 'opencode9: connected to ' .. conn.Url() .. ' (version ' .. conn.Version() .. ')'
+enddef
+
+def DisconnectServer()
+  var conn = server.Current()
+  if type(conn) == v:t_none
+    echomsg 'opencode9: not connected'
+    return
+  endif
+  server.Disconnect(conn)
+  echomsg 'opencode9: disconnected'
+enddef
+
+def StartServer()
+  if !discovery.HasStartCommand()
+    util.EchoError('server_command is empty; configure one before starting a server')
+    return
+  endif
+  if discovery.Start((message: string) => util.EchoError(message))
+    echomsg 'opencode9: server start requested'
+  endif
+enddef
+
+def StopServer()
+  discovery.StopStarted()
+  echomsg 'opencode9: server start job stopped (if one was running)'
 enddef
 
 def NotImplemented(name: string, phase: string)
