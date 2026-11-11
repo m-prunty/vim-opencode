@@ -1,0 +1,812 @@
+{
+  "report": {
+    "title": "nickjvandyke/opencode.nvim — feature and implementation analysis",
+    "repository": "https://github.com/nickjvandyke/opencode.nvim",
+    "analyzed_commit": "4851ae503585dc5142ad66a98e8952a74e1f7b3a",
+    "analyzed_branch": "main",
+    "commit_date": "2026-10-30T09:48:05-06:00",
+    "analyzed_at": "2026-11-11",
+    "license": "MIT",
+    "language": "Lua (Neovim plugin)",
+    "lua_files": 19,
+    "lua_lines": 2428,
+    "minimum_editor": "Neovim (README CI references 0.12.x); no explicit minimum documented in the main branch",
+    "opencode_support": "main targets OpenCode V2 and its /api/* protocol; the latest stable release line is documented as supporting OpenCode V1",
+    "required_external_tools": [
+      "opencode CLI on PATH",
+      "curl"
+    ],
+    "optional_integrations": [
+      "snacks.nvim (input, picker, terminal)",
+      "blink.cmp (LSP completion source for ask)",
+      "lualine.nvim (statusline)",
+      "any vim.ui.input/vim.ui.select implementation"
+    ],
+    "summary": "A deliberately small, focused Neovim frontend for OpenCode. It is a thin bridge: discover or start a server, capture editor context with placeholder syntax, submit prompts, expose server commands and events, reload edited buffers, show permission prompts, and review proposed edits with :diffpatch. It avoids a persistent chat panel and instead leverages Neovim's existing input/select/terminal UX, with optional snacks.nvim and blink.cmp enhancements."
+  },
+  "architecture": {
+    "layers": [
+      {
+        "layer": "Public API",
+        "modules": [
+          "lua/opencode.lua"
+        ],
+        "responsibilities": [
+          "Export ask(), select(), prompt(), command(), operator(), format() and statusline.",
+          "Resolve the server and context, then delegate to UI/API modules."
+        ]
+      },
+      {
+        "layer": "Configuration",
+        "modules": [
+          "lua/opencode/config.lua"
+        ],
+        "responsibilities": [
+          "Read vim.g.opencode_opts, deep-merge defaults, set autoread when reload is enabled.",
+          "Define contexts, prompts, server start/connect, ask/select/events options."
+        ]
+      },
+      {
+        "layer": "Server and transport",
+        "modules": [
+          "lua/opencode/server/init.lua",
+          "lua/opencode/server/discovery/init.lua",
+          "lua/opencode/promise/init.lua",
+          "lua/opencode/promise/ui.lua"
+        ],
+        "responsibilities": [
+          "Discover registered background services or a configured URL, optionally start one, and poll.",
+          "Probe /api/info, build curl requests, authenticate, scope by directory.",
+          "Maintain the SSE subscription, heartbeat and connected-server singleton.",
+          "Expose promise-based request/subscription APIs."
+        ]
+      },
+      {
+        "layer": "Context",
+        "modules": [
+          "lua/opencode/context/init.lua",
+          "lua/opencode/context/builtins.lua",
+          "lua/opencode/context/rendered.lua"
+        ],
+        "responsibilities": [
+          "Capture buffer/window/cursor/selection before UI opens.",
+          "Render placeholders into plaintext plus highlight segments.",
+          "Format file paths and ranges for OpenCode.",
+          "Provide @this, @buffer, @buffers, @diagnostics, @marks, @quickfix, @visible."
+        ]
+      },
+      {
+        "layer": "Prompt and command APIs",
+        "modules": [
+          "lua/opencode/api/prompt.lua",
+          "lua/opencode/api/command.lua"
+        ],
+        "responsibilities": [
+          "Resolve the target session and post prompts or run server commands.",
+          "Handle the trailing ... convention and context cleanup/resume."
+        ]
+      },
+      {
+        "layer": "UI",
+        "modules": [
+          "lua/opencode/ui/ask/init.lua",
+          "lua/opencode/ui/ask/cmp.lua",
+          "lua/opencode/ui/select.lua"
+        ],
+        "responsibilities": [
+          "Ask for a prompt with context-aware highlighting and completion.",
+          "Select from prompts and server commands, with optional snacks.picker previews.",
+          "Fall back to vim.ui.input / vim.ui.select."
+        ]
+      },
+      {
+        "layer": "Events and plugin integrations",
+        "modules": [
+          "lua/opencode/events/init.lua",
+          "lua/opencode/events/status.lua",
+          "lua/opencode/events/permissions/init.lua",
+          "lua/opencode/events/permissions/edits.lua",
+          "plugin/events/reload.lua",
+          "plugin/events/status.lua",
+          "plugin/events/permissions/init.lua",
+          "plugin/events/permissions/edits.lua",
+          "plugin/highlights.lua"
+        ],
+        "responsibilities": [
+          "Forward SSE events as OpencodeEvent:* User autocmds.",
+          "Reload buffers on file events, update statusline state, show permission dialogs and edit diffs."
+        ]
+      }
+    ],
+    "data_flow": [
+      "ask()/prompt()/operator()/select()/command() -> discovery.get() -> Context.new().",
+      "Ask UI returns text -> api.prompt -> context:render().output:plaintext() -> resolve_session -> POST prompt.",
+      "SSE /api/event -> Server:curl persistent job -> decode JSON -> events.emit -> User autocmd.",
+      "Plugin autocmds handle reload/status/permissions/edits.",
+      "Permission reply -> POST /api/session/{id}/permission/{requestID}/reply."
+    ],
+    "protocol": {
+      "version": "OpenCode V2 /api/* on main; V1 supported by the stable release line rather than dual-runtime detection",
+      "health": "GET /api/info",
+      "events": "GET /api/event (SSE)",
+      "session_scope": "GET /api/session?directory=<cwd>&order=desc&parentID=null",
+      "headers": [
+        "Authorization: Basic ... when a password is configured",
+        "x-opencode-directory: <cwd>"
+      ],
+      "event_shape": "{ id, type, data }"
+    },
+    "state_model": [
+      "Server.connected singleton",
+      "heartbeat timer on each Server",
+      "Context.current global for completion documentation",
+      "status.url and status value module locals",
+      "current_edit_request_id and diff_tabpage module locals for edit review",
+      "no central state store or transcript model"
+    ]
+  },
+  "features": [
+    {
+      "id": "ask",
+      "name": "Ask: input a prompt with context highlighting and completion",
+      "description": "Prompts for text, pre-fills an optional default, highlights resolved context placeholders, offers completion, and browses recent asks with Up. Uses snacks.input when available, otherwise vim.ui.input.",
+      "implementation": {
+        "modules": [
+          "lua/opencode.lua (M.ask)",
+          "lua/opencode/ui/ask/init.lua",
+          "lua/opencode/ui/ask/cmp.lua",
+          "lua/opencode/promise/ui.lua"
+        ],
+        "entrypoints": [
+          "require('opencode').ask(default)"
+        ],
+        "mechanism": "Resolve a server, create a Context, then call the ask UI. The UI passes a highlight callback that renders placeholders via context:render(text).input:input_highlight(). If snacks is installed and input is enabled, merge ask.snacks into the input options and start an in-process LSP for placeholder completion. Otherwise use vim.ui.input wrapped in a Promise.",
+        "data_flow": [
+          "ask(default) -> discovery.get() -> Context.new(server)",
+          "ask UI -> input text -> api.prompt(text, context)",
+          "cancel -> context:resume() and reject"
+        ],
+        "complexity": "low-medium",
+        "vim9_portability": "High. input() with a completion type or a custom popup/input buffer can replace vim.ui.input. Highlighting needs a custom prompt/popup or a normal input buffer; Vim's input() cannot highlight arbitrary ranges."
+      }
+    },
+    {
+      "id": "prompt",
+      "name": "Prompt OpenCode in the most recent session for the current directory",
+      "description": "Injects configured contexts, resolves the most recently updated non-archived root session for Neovim's cwd, and posts the rendered plaintext. A trailing ... opens ask() instead.",
+      "implementation": {
+        "modules": [
+          "lua/opencode.lua (M.prompt)",
+          "lua/opencode/api/prompt.lua",
+          "lua/opencode/context/init.lua",
+          "lua/opencode/server/init.lua"
+        ],
+        "entrypoints": [
+          "require('opencode').prompt(text)"
+        ],
+        "mechanism": "If the text ends with '...', strip it and call ask(). Otherwise render the context output, plaintext-join it, resolve the target session, POST /api/session/{id}/prompt with {text}, and clear/resume the selection on completion or error.",
+        "data_flow": [
+          "prompt text -> context:render -> output:plaintext",
+          "resolve_session -> GET /api/session?directory=...&order=desc&parentID=null",
+          "POST /api/session/{id}/prompt",
+          "clear context on success / resume visual selection on error"
+        ],
+        "complexity": "low-medium",
+        "vim9_portability": "High. JSON request, session list filter and POST are straightforward. The main Vim9 work is context rendering and async completion."
+      }
+    },
+    {
+      "id": "operator",
+      "name": "Operator wrapper for ranges and dot-repeat",
+      "description": "Wraps prompt as an operator so users can send a motion range (e.g. go$) or a line (goo) and repeat with dot.",
+      "implementation": {
+        "modules": [
+          "lua/opencode.lua (M.operator)"
+        ],
+        "entrypoints": [
+          "vim.keymap.set({'n','x'}, 'go', function() return require('opencode').operator('@this') end, {expr=true})"
+        ],
+        "mechanism": "Set operatorfunc to a global Vimscript-callable function and return 'g@'. The operator function reads the '[' and ']' marks, normalizes order, builds a Context with the range and kind, and calls prompt. Because operatorfunc is set, dot-repeat works.",
+        "data_flow": [
+          "key -> return g@ -> operatorfunc -> marks -> Context(range) -> prompt"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Very high. operatorfunc, g@, getpos(\"'[\") and getpos(\"']\") are native Vim. A Vim9 function can be referenced from operatorfunc with a global wrapper."
+      }
+    },
+    {
+      "id": "select",
+      "name": "Select from prompts and OpenCode commands",
+      "description": "A single menu of built-in/custom prompts and server-registered commands. Uses snacks.picker when available, otherwise vim.ui.select. Choosing a prompt sends it; choosing a command asks for optional arguments and runs it.",
+      "implementation": {
+        "modules": [
+          "lua/opencode.lua (M.select)",
+          "lua/opencode/ui/select.lua",
+          "lua/opencode/server/init.lua"
+        ],
+        "entrypoints": [
+          "require('opencode').select()"
+        ],
+        "mechanism": "Build prompt items from config.opts.select.prompts, rendering input highlights and output previews. Fetch /api/command and append command items. Format groups and rows, call promise.ui.select, then dispatch prompt or command. Command arguments are requested with an input dialog because the API does not expose whether arguments are required.",
+        "data_flow": [
+          "select -> prompts + GET /api/command -> items",
+          "choice prompt -> api.prompt",
+          "choice command -> input args -> api.command"
+        ],
+        "complexity": "low-medium",
+        "vim9_portability": "High. popup_menu()/inputlist() can implement the menu; previews and highlights require more custom UI."
+      }
+    },
+    {
+      "id": "command",
+      "name": "Run a registered OpenCode command",
+      "description": "Runs built-in or user-defined OpenCode command templates in the resolved session.",
+      "implementation": {
+        "modules": [
+          "lua/opencode.lua (M.command)",
+          "lua/opencode/api/command.lua",
+          "lua/opencode/server/init.lua"
+        ],
+        "entrypoints": [
+          "require('opencode').command(name, text)"
+        ],
+        "mechanism": "Resolve the most recent root session, then POST /api/session/{id}/command with {name, text}. The command list comes from GET /api/command.",
+        "data_flow": [
+          "command name/text -> resolve_session -> POST command"
+        ],
+        "complexity": "low",
+        "vim9_portability": "High."
+      }
+    },
+    {
+      "id": "context-placeholders",
+      "name": "Placeholder-based editor context",
+      "description": "Prompts can contain @this, @buffer, @buffers, @diagnostics, @marks, @quickfix and @visible. Each is replaced with a formatted file:line:column range so OpenCode can read the referenced code. @this is the selection if any, else the cursor position.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/config.lua",
+          "lua/opencode/context/builtins.lua",
+          "lua/opencode/context/init.lua"
+        ],
+        "mechanism": "config.contexts maps placeholder strings to builder functions. Context:render scans the prompt for the longest matching placeholder first (to avoid @buffer vs @buffers), produces two segment lists: input (placeholder highlight) and output (resolved value highlight). Builders format paths relative to cwd and append :Lx:Cx-Ly:Cy ranges. Unsaved/scratch buffers fall back to literal text.",
+        "data_flow": [
+          "prompt text -> placeholder scan -> builder(context) -> formatted location/text",
+          "output plaintext -> POST prompt"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. String scanning, marks, getregion(), getqflist(), getmarklist() and path formatting are native Vim. Diagnostics are the main gap: use quickfix/location lists or optional integration instead of vim.diagnostic."
+      }
+    },
+    {
+      "id": "context-rendering-highlights",
+      "name": "Rendered context segments with highlights",
+      "description": "Context rendering returns segments of text plus highlight group, with helpers for plaintext, extmarks and input()-style highlight ranges.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/context/rendered.lua",
+          "plugin/highlights.lua"
+        ],
+        "mechanism": "Rendered is a list of {text, hl?} tuples with methods plaintext(), extmarks() and input_highlight(). Plugin highlights link OpencodeContextPlaceholder and OpencodeContextValue to existing syntax/LSP groups. Extmarks are used for picker previews; input_highlight is used by ask/snacks.",
+        "data_flow": [
+          "segments -> plaintext for API",
+          "segments -> extmarks for preview",
+          "segments -> {start,end,hl} for input()/snacks highlight"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Medium. Plaintext is trivial; highlighting an input() prompt is not possible with Vim's input(). A custom input buffer/popup with prop_add can do it."
+      }
+    },
+    {
+      "id": "server-discovery",
+      "name": "Server discovery, auto-start and connection",
+      "description": "Finds an OpenCode background service, a configured URL (string or function), or starts one via a user callback, then connects and subscribes to events. Works with remote servers, basic auth and per-directory session scoping.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/server/discovery/init.lua",
+          "lua/opencode/server/init.lua",
+          "lua/opencode/config.lua"
+        ],
+        "mechanism": "Discovery order: currently connected -> configured URL -> service registrations in the OpenCode state directory (service.json or service-<channel>.json, newest first) -> call server.start and poll every second for up to five seconds. Registration JSON supplies url/password/pid/version. Server.new probes GET /api/info and rejects on failure. Every request sends Basic auth when a password exists and x-opencode-directory=<cwd>. Connecting subscribes to /api/event.",
+        "data_flow": [
+          "find() -> connected/configured/registrations",
+          "fail -> server.start() -> poll find() 5x",
+          "Server.new -> GET /api/info -> connect -> GET /api/event"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Use readfile/json_decode for service files, job_start for curl, and timer_start for polling. State-directory resolution must mirror OpenCode (XDG_STATE_HOME or ~/.local/state)."
+      }
+    },
+    {
+      "id": "sse-events-autocmds",
+      "name": "SSE subscription and OpencodeEvent User autocmds",
+      "description": "Subscribes to /api/event and forwards each event as a User autocmd named OpencodeEvent:<type>, with args.data.event and args.data.url. Heartbeats detect a dead stream; global.disposed/server.instance.disposed disconnect.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/server/init.lua (connect/disconnect)",
+          "lua/opencode/events/init.lua",
+          "lua/opencode/events/status.lua"
+        ],
+        "mechanism": "Run curl -N as a persistent job. Parse SSE frames: empty line terminates a frame; lines beginning with ':' are heartbeats. Reset a uv timer on each heartbeat; if it expires, disconnect. On server.connected set the singleton and resolve. Emit nvim_exec_autocmds('User', {pattern='OpencodeEvent:'..type, data=...}).",
+        "data_flow": [
+          "curl /api/event -> frame JSON -> events.emit -> User autocmd",
+          "heartbeat -> reset timer; timeout -> disconnect"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. job_start + out_cb/timer_start can replace libuv. Vim cannot pass arbitrary data to an autocmd, so stash the event in a global dict before doautocmd."
+      }
+    },
+    {
+      "id": "statusline",
+      "name": "Statusline icon and server URL",
+      "description": "Exports a statusline function that shows an icon for idle/busy/error and the connected server URL (scheme stripped).",
+      "implementation": {
+        "modules": [
+          "lua/opencode/events/status.lua",
+          "plugin/events/status.lua"
+        ],
+        "mechanism": "Plugin autocmd listens for server.connected, session.status, session.execution.failed and disposed events, updating a module-local status and URL. statusline() returns icon + URL. Icons are Nerd Font glyphs.",
+        "data_flow": [
+          "SSE status events -> status.update -> statusline()"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Very high. Use a global status dict and a %{Func()} statusline expression."
+      }
+    },
+    {
+      "id": "reload-edits",
+      "name": "Real-time reload of files edited by OpenCode",
+      "description": "When OpenCode edits a file or the filesystem changes, the plugin runs :checktime so buffers reload. autoread is enabled automatically unless the user explicitly configured it.",
+      "implementation": {
+        "modules": [
+          "plugin/events/reload.lua",
+          "lua/opencode/config.lua"
+        ],
+        "mechanism": "A User autocmd matches OpencodeEvent:file.edited and filesystem.changed. If events.reload.enabled, schedule :checktime (scheduling avoids dropping events during rapid SSE). At config load, set vim.o.autoread=true if the user has not set it.",
+        "data_flow": [
+          "SSE file event -> User autocmd -> schedule checktime -> buffer reload"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Very high. Vim has :checktime and 'autoread'."
+      }
+    },
+    {
+      "id": "permissions",
+      "name": "Permission request prompts",
+      "description": "When OpenCode asks permission, show a select dialog with Once/Always/Reject and reply to the server. Edit requests with a previewable patch are delegated to the diff handler.",
+      "implementation": {
+        "modules": [
+          "plugin/events/permissions/init.lua",
+          "lua/opencode/events/permissions/init.lua"
+        ],
+        "mechanism": "Listen for permission.asked. If disabled, or if the edit handler can preview it, return. Otherwise build a prompt from data.action and data.resources and use promise.ui.select. Lowercase the choice and POST /api/session/{sessionID}/permission/{requestID}/reply with {decision}. Errors are notified.",
+        "data_flow": [
+          "SSE permission.asked -> select Once/Always/Reject -> POST reply"
+        ],
+        "complexity": "low-medium",
+        "vim9_portability": "High. popup_menu()/inputlist() or a custom popup works. Handling a reply while the dialog is open is the main event-loop concern."
+      }
+    },
+    {
+      "id": "edit-diff-review",
+      "name": "Proposed-edit diff review with :diffpatch",
+      "description": "For a single-file edit permission request with a patch, open the target file in a new tab and show :diffpatch side-by-side. Accept/reject the whole request, use native dp/do per hunk, ]c/[c navigation, and q to close.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/events/permissions/edits.lua",
+          "plugin/events/permissions/edits.lua"
+        ],
+        "mechanism": "Extract data.metadata.files[1].patch and file from permission.asked (action='edit'). Resolve the target path (absolute, or relative to HOME). Write the patch to a temp file, tabnew the target, run silent vert diffpatch, set bufhidden=wipe, and install buffer-local mappings. da resolves 'once'; dr rejects; dp/do resolve 'reject' then fall through to native dp/do for the hunk; q closes and rejects. On permission.replied matching the request, close the diff tab. Multi-file edits fall back to the generic permission prompt.",
+        "data_flow": [
+          "SSE permission.asked(edit) -> patch/file -> temp patch -> tab + diffpatch",
+          "key -> resolve decision -> POST permission reply",
+          "permission.replied -> close tab"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. :diffpatch, :diffget/:diffput, ]c/[c and dp/do are native in Vim 9.1. Path resolution and buffer-local mappings are portable; per-hunk accept semantics should be documented carefully."
+      }
+    },
+    {
+      "id": "session-resolution",
+      "name": "Most-recent root session resolution per directory",
+      "description": "Targets the most recently updated non-archived root session for Neovim's cwd; no session picker or explicit session management is exposed in the public API.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/server/init.lua"
+        ],
+        "mechanism": "GET /api/session?directory=<encoded cwd>&order=desc&parentID=null, then pick the first session without time.archived. Resolved on every call, never cached. Rejects with a clear message if none exists.",
+        "data_flow": [
+          "resolve_session -> GET session list -> first non-archived root"
+        ],
+        "complexity": "low",
+        "vim9_portability": "High. The query string and filter are native."
+      }
+    },
+    {
+      "id": "completion",
+      "name": "Context placeholder completion",
+      "description": "Provides completion for context placeholders in ask. With snacks.input, an in-process LSP supplies items and documentation. Without it, a global customlist function supports vim.ui.input completion.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/ask/init.lua",
+          "lua/opencode/ui/ask/cmp.lua"
+        ],
+        "mechanism": "The global function parses the whole input line (ArgLead equals CmdLine in practice), replaces the latest word with a matching placeholder, and returns full-line candidates. The LSP handles initialize, textDocument/completion and completionItem/resolve; resolve renders the placeholder documentation from Context.current.",
+        "data_flow": [
+          "input completion -> placeholder list -> item",
+          "LSP resolve -> context:render(label).output:plaintext -> documentation"
+        ],
+        "complexity": "low-medium",
+        "vim9_portability": "High. complete()/completefunc and popup_menu can replace the LSP. Documentation previews can be a popup."
+      }
+    },
+    {
+      "id": "integrations",
+      "name": "Optional snacks/blink/lualine integrations",
+      "description": "snacks.input enhances Ask, snacks.picker enhances Select, snacks.terminal can start/toggle the server, blink.cmp consumes the in-process LSP for completion, and lualine can show the statusline function.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/ask/init.lua",
+          "lua/opencode/ui/select.lua",
+          "lua/opencode/config.lua",
+          "README.md examples"
+        ],
+        "mechanism": "Runtime pcall(require, 'snacks') and config checks. Integration glue that bridges another tool to opencode.nvim lives in README examples; enhancements to its own UI stay in the plugin. blink is configured through its LSP source; lualine calls statusline.",
+        "data_flow": [
+          "ask/select -> detect optional plugin -> merge its opts -> call it"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Not applicable as-is. The Vim9 port should expose equivalent hooks (custom input/menu functions) instead of depending on Neovim Lua plugins."
+      }
+    },
+    {
+      "id": "health",
+      "name": "Health check",
+      "description": "checkhealth validates OS/version/git commit, autoread, opencode and curl executables, minimum opencode version, registered service, current connection and snacks enhancements.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/health.lua"
+        ],
+        "mechanism": "Use vim.health API, executable checks, opencode --version and version parsing, discovery registrations, and snacks config state.",
+        "data_flow": [
+          ":checkhealth opencode -> health.check -> report"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Medium. Vim has no :checkhealth or vim.health; implement :Opencode health and echo/echomsg checks. The underlying checks are portable."
+      }
+    },
+    {
+      "id": "configuration",
+      "name": "Configuration through vim.g.opencode_opts",
+      "description": "Configuration is a global variable rather than setup(), for faster startup and simpler UX. Defaults cover server, contexts, prompts, ask, select and events.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/config.lua"
+        ],
+        "mechanism": "vim.g.opencode_opts is read at require time and deep-merged with defaults. A noted limitation: Neovim cannot represent mixed integer/string keys in vim.g, so some snacks options must be modified on require('opencode.config').opts directly. autoread is set at load if reload is enabled and the user did not set it.",
+        "data_flow": [
+          "vim.g.opencode_opts -> deep merge -> opts consumed by all modules"
+        ],
+        "complexity": "low",
+        "vim9_portability": "Very high. A global dict g:opencode9_opts and merge() are native."
+      }
+    },
+    {
+      "id": "v1-v2-strategy",
+      "name": "V1/V2 strategy via release line, not runtime detection",
+      "description": "The main branch targets OpenCode V2. Users who need OpenCode V1 are directed to the latest stable release line rather than a dual-protocol runtime.",
+      "implementation": {
+        "modules": [
+          "README.md",
+          "CHANGELOG.md",
+          "lua/opencode/server/init.lua"
+        ],
+        "mechanism": "The README documents main as V2 and version = vim.version.range('*') / version = '*' as the V1 stable line. The code on main uses /api/* paths and V2 event shapes exclusively.",
+        "data_flow": [
+          "plugin version selection -> matching opencode server generation"
+        ],
+        "complexity": "low",
+        "vim9_portability": "This is a packaging decision. A Vim9 port can either mirror it (separate tags) or use a protocol adapter like sudo-tee."
+      }
+    }
+  ],
+  "implementation_pathways": [
+    {
+      "id": "P1-discovery-connect",
+      "name": "Discovery and connection pathway",
+      "goal": "Obtain a connected Server with credentials and an active event stream.",
+      "steps": [
+        "Look for an already connected server.",
+        "If server.url is configured (string or function), probe it and treat it as authoritative.",
+        "Read service.json / service-<channel>.json from the OpenCode state directory, newest first, and try each registration.",
+        "If none works, call server.start (default: open a terminal running opencode) and poll every second for up to five seconds.",
+        "Probe GET /api/info; on success store url, version, credentials and a heartbeat timer.",
+        "If server.connect is true, subscribe to GET /api/event before interactions."
+      ],
+      "modules": [
+        "server/discovery/init.lua",
+        "server/init.lua",
+        "config.lua"
+      ],
+      "key_apis": [
+        "vim.fn.readfile",
+        "vim.json.decode",
+        "vim.uv.fs_stat",
+        "vim.uv.new_timer",
+        "curl via vim.fn.jobstart"
+      ],
+      "tradeoffs": [
+        "No hard dependency on the OpenCode Lua API; only the CLI and curl.",
+        "Starting via a terminal split keeps the TUI available but is less controlled than a background service.",
+        "Five-second polling is simple but may be too short on slow machines."
+      ]
+    },
+    {
+      "id": "P2-context-render",
+      "name": "Context capture and rendering pathway",
+      "goal": "Turn editor state into a prompt string with placeholders resolved.",
+      "steps": [
+        "Capture win/buf/cursor and, if in visual mode, exit visual and read the '< and '> marks.",
+        "Store the range and optionally highlight it with the Visual group.",
+        "Scan the prompt for configured placeholders, longest first.",
+        "For each placeholder, call its builder with the captured Context; return nil to leave the placeholder literal.",
+        "Format file locations relative to cwd; use literal text for scratch buffers.",
+        "Produce input and output segment lists; output plaintext is what gets sent; input segments drive highlighting."
+      ],
+      "modules": [
+        "context/init.lua",
+        "context/builtins.lua",
+        "context/rendered.lua"
+      ],
+      "key_apis": [
+        "vim.fn.mode",
+        "nvim_buf_get_mark",
+        "nvim_buf_get_lines",
+        "vim.diagnostic.get",
+        "getqflist/getmarklist"
+      ],
+      "tradeoffs": [
+        "Placeholders are explicit and composable, but users must know the syntax.",
+        "Formatting locations instead of inlining text lets OpenCode read the file; scratch buffers must fall back to inline text.",
+        "Diagnostics are Neovim-specific and need a different source in Vim."
+      ]
+    },
+    {
+      "id": "P3-ask-flow",
+      "name": "Ask -> prompt flow",
+      "goal": "Collect text interactively, then submit it with context.",
+      "steps": [
+        "Resolve a server and capture Context before opening the input UI.",
+        "Render the current input text for highlighting on each change.",
+        "On submit, pass the text to api.prompt.",
+        "On cancel, clear the selection highlight and resume visual mode."
+      ],
+      "modules": [
+        "opencode.lua",
+        "ui/ask/init.lua",
+        "api/prompt.lua",
+        "context/init.lua"
+      ],
+      "key_apis": [
+        "vim.ui.input",
+        "snacks.input",
+        "promise.ui.input"
+      ],
+      "tradeoffs": [
+        "Using the editor's input UI is lightweight and familiar.",
+        "Highlighting and completion are limited without snacks.input.",
+        "A blocking input() would not process SSE events while open."
+      ]
+    },
+    {
+      "id": "P4-prompt-submit",
+      "name": "Prompt submission and session resolution pathway",
+      "goal": "Post the prompt to the right session and clean up context state.",
+      "steps": [
+        "If the prompt ends with ..., reopen ask with the prefix.",
+        "Render context output and plaintext-join it.",
+        "Resolve the most recent non-archived root session for cwd.",
+        "POST /api/session/{id}/prompt with {text}.",
+        "Clear the selection highlight on success; resume visual selection on error."
+      ],
+      "modules": [
+        "api/prompt.lua",
+        "server/init.lua"
+      ],
+      "key_apis": [
+        "POST /api/session/{id}/prompt",
+        "GET /api/session?directory=...&order=desc&parentID=null"
+      ],
+      "tradeoffs": [
+        "Omitting an explicit session picker keeps the plugin small but can surprise users with multiple sessions.",
+        "Resolving on every call avoids stale session ids but adds a request per prompt."
+      ]
+    },
+    {
+      "id": "P5-operator",
+      "name": "Operator pathway",
+      "goal": "Support ranges and dot-repeat without a custom visual mode.",
+      "steps": [
+        "Set operatorfunc to a global function and return g@ from an expr mapping.",
+        "Read '[ and '] marks, normalize order, build a Context with range and kind.",
+        "Call prompt with the configured placeholder text.",
+        "Because g@ is used, dot-repeat replays the operator."
+      ],
+      "modules": [
+        "opencode.lua"
+      ],
+      "key_apis": [
+        "operatorfunc",
+        "g@",
+        "getpos(\"'[\")",
+        "getpos(\"']\")"
+      ],
+      "tradeoffs": [
+        "Native and tiny, but the user must map it and understand operator semantics.",
+        "The global operator function name is a small namespace cost."
+      ]
+    },
+    {
+      "id": "P6-select-command",
+      "name": "Select and command pathway",
+      "goal": "Offer prompts and server commands in one menu.",
+      "steps": [
+        "Build prompt items from config; render preview highlights.",
+        "Fetch GET /api/command and append command items.",
+        "Show via snacks.picker or vim.ui.select.",
+        "Prompt item -> api.prompt; command item -> ask for optional args -> resolve session -> POST command."
+      ],
+      "modules": [
+        "ui/select.lua",
+        "api/command.lua",
+        "server/init.lua"
+      ],
+      "key_apis": [
+        "GET /api/command",
+        "POST /api/session/{id}/command",
+        "vim.ui.select"
+      ],
+      "tradeoffs": [
+        "Commands are discovered from the server, so user-defined commands work automatically.",
+        "The API does not expose argument requirements, so the plugin always asks."
+      ]
+    },
+    {
+      "id": "P7-events",
+      "name": "Event subscription and plugin autocmd pathway",
+      "goal": "Expose server events to users and drive built-in behaviors.",
+      "steps": [
+        "Subscribe to /api/event with a persistent curl job.",
+        "Decode SSE frames; ignore comments but reset the heartbeat timer.",
+        "On server.connected, mark the singleton connected; on disposed, disconnect.",
+        "Emit User OpencodeEvent:<type> with event and url data.",
+        "Built-in autocmds handle reload, status, permissions and edits."
+      ],
+      "modules": [
+        "server/init.lua",
+        "events/init.lua",
+        "plugin/events/*"
+      ],
+      "key_apis": [
+        "GET /api/event",
+        "nvim_exec_autocmds('User', {data=...})",
+        "vim.uv.new_timer"
+      ],
+      "tradeoffs": [
+        "Passing raw payloads through is flexible but exposes a moving schema.",
+        "Heartbeat disconnects prevent a silently dead subscription.",
+        "Neovim autocmd data is not available in Vim; a global handoff is required."
+      ]
+    },
+    {
+      "id": "P8-permissions-edits",
+      "name": "Permission and edit-review pathway",
+      "goal": "Approve or reject actions, with a diff preview for file edits.",
+      "steps": [
+        "On permission.asked, attempt an edit preview from metadata.files.",
+        "If exactly one file with a patch exists, write a temp patch and open a new tab with :diffpatch.",
+        "Install buffer-local da/dr/dp/do/q mappings that resolve a promise with once/reject.",
+        "POST the decision to the permission reply endpoint.",
+        "On permission.replied for the same request, close the diff tab.",
+        "If no preview is possible, fall back to the generic Once/Always/Reject select."
+      ],
+      "modules": [
+        "events/permissions/init.lua",
+        "events/permissions/edits.lua",
+        "plugin/events/permissions/*"
+      ],
+      "key_apis": [
+        "POST /api/session/{id}/permission/{requestID}/reply",
+        ":tabnew",
+        ":diffpatch",
+        ":diffget/:diffput",
+        "]c/[c"
+      ],
+      "tradeoffs": [
+        "Diff review is a strong UX for single-file edits and reuses native Vim diff.",
+        "Multi-file edits must fall back to a blind approval, which is a safety gap.",
+        "Per-hunk dp/do reject the whole request in this design; users can continue editing locally."
+      ]
+    },
+    {
+      "id": "P9-completion",
+      "name": "Completion pathway",
+      "goal": "Help users type context placeholders.",
+      "steps": [
+        "Advertise the placeholder set from config.contexts.",
+        "For built-in inputs, provide a customlist function that returns full-line candidates.",
+        "For snacks.input, start an in-process LSP that returns completion items and resolves documentation from the current Context.",
+        "Insert the chosen placeholder into the prompt."
+      ],
+      "modules": [
+        "ui/ask/init.lua",
+        "ui/ask/cmp.lua"
+      ],
+      "key_apis": [
+        "vim.ui.input completion",
+        "vim.lsp.start",
+        "context:render"
+      ],
+      "tradeoffs": [
+        "The LSP path integrates with modern completion plugins but is extra code.",
+        "The customlist path is portable and dependency-free.",
+        "Vim 9.1 has no LSP, so complete()/popup_menu are the equivalent."
+      ]
+    },
+    {
+      "id": "P10-integration-health",
+      "name": "Integration and health pathway",
+      "goal": "Stay lightweight while cooperating with the user's existing ecosystem.",
+      "steps": [
+        "Detect optional plugins with pcall/require and config flags.",
+        "Merge their options only at the call site.",
+        "Keep third-party bridge examples in documentation.",
+        "Provide checkhealth and a statusline helper.",
+        "Permit disabling auto-connect when disruptive synchronous events are unwanted."
+      ],
+      "modules": [
+        "ui/ask/init.lua",
+        "ui/select.lua",
+        "health.lua",
+        "events/status.lua",
+        "README.md"
+      ],
+      "key_apis": [
+        "pcall(require, ...)",
+        "vim.health",
+        "vim.fn.executable",
+        "opencode --version"
+      ],
+      "tradeoffs": [
+        "Optional integrations keep the core small but create a test matrix.",
+        "A checkhealth command is expected in Neovim; Vim needs a custom command."
+      ]
+    }
+  ],
+  "strengths": [
+    "Very small and auditable (about 2.4k Lua lines).",
+    "Uses existing editor UX (input/select/terminal) instead of building a second chat client.",
+    "Placeholder context system is elegant and composable.",
+    "Operator integration supports ranges and dot-repeat with little code.",
+    "Server discovery and SSE heartbeat handling are pragmatic and robust.",
+    "Permission diff review reuses native Vim diff behavior.",
+    "No hard Neovim plugin dependencies; curl and the CLI are the only requirements."
+  ],
+  "weaknesses_and_risks": [
+    "No persistent transcript/panel; users must interact through input dialogs and the OpenCode TUI.",
+    "No session picker, model/agent picker, timeline, quick chat or rich tool rendering.",
+    "V2-only main branch; V1 requires selecting a different release line.",
+    "Permission/edit handling depends on a V2 metadata shape that the author flags as version-specific.",
+    "Multi-file edit requests fall back to a blind approval prompt.",
+    "No central state store; behavior is spread across module locals and autocmds.",
+    "Input dialogs are modal, so streaming events are not visible while typing unless the user uses snacks.input.",
+    "No tests; verification is manual checkhealth."
+  ],
+  "notable_patterns": [
+    "Placeholder substitution with longest-match-first scanning.",
+    "Rendered segment lists with plaintext/extmark/input-highlight projections.",
+    "Promise wrapper around vim.ui.input/vim.ui.select.",
+    "SSE heartbeat deadline for dead-connection detection.",
+    "Autocmd-driven feature separation (reload/status/permissions/edits).",
+    "Native :diffpatch review instead of a custom diff renderer."
+  ]
+}
