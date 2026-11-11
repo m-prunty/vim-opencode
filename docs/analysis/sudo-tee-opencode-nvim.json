@@ -1,0 +1,1217 @@
+{
+  "report": {
+    "title": "sudo-tee/opencode.nvim — feature and implementation analysis",
+    "repository": "https://github.com/sudo-tee/opencode.nvim",
+    "analyzed_commit": "96c610b841788f738eefe65442d05bc9f600b857",
+    "analyzed_branch": "main",
+    "commit_date": "2026-11-11T19:37:19+08:00",
+    "analyzed_at": "2026-11-11",
+    "license": "Apache-2.0",
+    "language": "Lua (Neovim plugin)",
+    "lua_files": 182,
+    "lua_lines": 49652,
+    "minimum_editor": "Neovim 0.10.3+",
+    "opencode_support": "OpenCode V1 and V2, protocol auto-detected from an authenticated health probe",
+    "required_external_tools": [
+      "opencode CLI on PATH",
+      "curl (used for HTTP and SSE)"
+    ],
+    "optional_integrations": [
+      "snacks.nvim (picker/input)",
+      "telescope.nvim",
+      "fzf-lua",
+      "mini.pick",
+      "blink.cmp",
+      "nvim-cmp",
+      "render-markdown.nvim",
+      "markview.nvim",
+      "Nerd Font icons",
+      "tmux (program status)"
+    ],
+    "summary": "A full-featured Neovim frontend for OpenCode. It is closer to an IDE chat client than a thin prompt bridge: a persistent panel with input/output buffers, multiple internal session tabs, streaming Markdown/tool/reasoning rendering, a rich context engine with de-duplication, V2 session-diff review with inline comments, quick-chat inline edits, pickers for models/agents/sessions/timeline, and a command/API/hook surface. Internally it is a protocol adapter (V1/V2) over a curl transport, an observation/reducer layer over SSE, a central state store, and a renderer that turns normalized message parts into a buffer transcript."
+  },
+  "architecture": {
+    "layers": [
+      {
+        "layer": "Entry and configuration",
+        "modules": [
+          "lua/opencode/init.lua",
+          "lua/opencode/config.lua",
+          "plugin/opencode.lua (implicit via setup)",
+          "lua/opencode/keymap.lua"
+        ],
+        "responsibilities": [
+          "Register setup(), config defaults, keymaps, commands, highlights, completion, autocmds.",
+          "Expose registration APIs for slash commands, completion sources and tool formatters."
+        ]
+      },
+      {
+        "layer": "Server acquisition and connection",
+        "modules": [
+          "lua/opencode/server_job.lua",
+          "lua/opencode/opencode_server.lua",
+          "lua/opencode/protocols/connection.lua",
+          "lua/opencode/port_mapping.lua",
+          "lua/opencode/auth.lua"
+        ],
+        "responsibilities": [
+          "Find, spawn or attach to an OpenCode server.",
+          "Probe /global/health (V1) or /api/info (V2) with credentials.",
+          "Select the protocol adapter, own the SSE stream, track requests, health-check and shutdown."
+        ]
+      },
+      {
+        "layer": "Wire protocol",
+        "modules": [
+          "lua/opencode/transport.lua",
+          "lua/opencode/curl.lua",
+          "lua/opencode/protocols/http.lua",
+          "lua/opencode/protocols/v1/operations.lua",
+          "lua/opencode/protocols/v1/observation.lua",
+          "lua/opencode/protocols/v2/operations.lua",
+          "lua/opencode/protocols/v2/observation/*.lua"
+        ],
+        "responsibilities": [
+          "Issue REST requests with JSON bodies, auth headers, path mapping and directory scoping.",
+          "Normalize V1 and V2 responses into shared model shapes.",
+          "Subscribe to /global/event (V1) or /api/event (V2) and reduce raw SSE events."
+        ]
+      },
+      {
+        "layer": "State and services",
+        "modules": [
+          "lua/opencode/state/*.lua",
+          "lua/opencode/services/session_runtime.lua",
+          "lua/opencode/services/session_tab_persistence.lua",
+          "lua/opencode/services/agent_model.lua",
+          "lua/opencode/services/messaging.lua",
+          "lua/opencode/services/background_tasks.lua",
+          "lua/opencode/context*.lua",
+          "lua/opencode/history.lua",
+          "lua/opencode/snapshot.lua"
+        ],
+        "responsibilities": [
+          "Own sessions, panel tabs, messages, parts, pending permissions/questions, models, drafts, context and UI state.",
+          "Publish state changes through a small store/subscription mechanism.",
+          "Persist session tabs, prompt history and V1 snapshots."
+        ]
+      },
+      {
+        "layer": "UI",
+        "modules": [
+          "lua/opencode/ui/output_window.lua",
+          "lua/opencode/ui/input_window.lua",
+          "lua/opencode/ui/renderer.lua",
+          "lua/opencode/ui/renderer/*.lua",
+          "lua/opencode/ui/formatter*.lua",
+          "lua/opencode/ui/formatter/tools/*.lua",
+          "lua/opencode/ui/picker.lua",
+          "lua/opencode/ui/*picker*.lua",
+          "lua/opencode/ui/permission_window.lua",
+          "lua/opencode/ui/question_window.lua",
+          "lua/opencode/ui/session_diff.lua",
+          "lua/opencode/ui/diff_tab.lua",
+          "lua/opencode/ui/context_bar.lua",
+          "lua/opencode/ui/footer.lua",
+          "lua/opencode/ui/completion*.lua"
+        ],
+        "responsibilities": [
+          "Render a transcript into a scratch output buffer.",
+          "Provide input, context bar, footer, tab strip, dialogs and pickers.",
+          "Render tool calls, reasoning, diffs, permissions and questions."
+        ]
+      },
+      {
+        "layer": "Command surface",
+        "modules": [
+          "lua/opencode/commands/init.lua",
+          "lua/opencode/commands/dispatch.lua",
+          "lua/opencode/commands/parse.lua",
+          "lua/opencode/commands/slash.lua",
+          "lua/opencode/commands/handlers/*.lua",
+          "lua/opencode/api.lua"
+        ],
+        "responsibilities": [
+          "One dispatcher for Ex commands, keymaps, slash commands and Lua API calls.",
+          "Parse options such as agent=, model=, variant=, context=.",
+          "Run before/after/error/finally lifecycle hooks."
+        ]
+      }
+    ],
+    "data_flow": [
+      "User key/command/API -> command dispatcher -> handler/service.",
+      "Handler resolves or creates a session and captures editor context.",
+      "Context formatter builds OpenCode message parts/attachments.",
+      "Transport sends JSON over curl with auth and x-opencode-directory.",
+      "Server SSE stream -> protocol observation reducer -> state store.",
+      "State subscription/timer -> renderer -> output buffer lines, extmarks and folds.",
+      "Raw events are also re-emitted as User autocmds named OpencodeEvent:<type>."
+    ],
+    "state_model": [
+      "store with get/set/subscribe; domains for session, jobs, ui, model, renderer, context and session tabs",
+      "active_session plus per-panel-tab session/draft/model/context",
+      "per-session observations holding message order, parts, permissions, questions and sync status",
+      "pending_permissions and pending_questions collections",
+      "user_message_count used to defer expensive Markdown rendering while streaming",
+      "windows/buffers state for input, output, tab strip, dialogs"
+    ],
+    "protocol_detection": {
+      "V2": "GET /api/info. A 404 or non-2.x version falls back to the V1 probe.",
+      "V1": "GET /global/health. Requires a boolean healthy field.",
+      "selection": "Authenticated health probe chooses the adapter; the adapter supplies both REST operations and an observation/reducer implementation.",
+      "headers": [
+        "Authorization: Basic ... when a password is configured",
+        "x-opencode-directory: <cwd> for V2 instance routing"
+      ]
+    }
+  },
+  "features": [
+    {
+      "id": "chat-panel",
+      "name": "Persistent chat panel with separate input and output buffers",
+      "description": "A right-side (configurable) panel with a normal editable input buffer and a read-only streaming output buffer. Drafts and scroll position survive hiding; pane focus can toggle; panel can zoom, swap sides, hide, close, or float.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/input_window.lua",
+          "lua/opencode/ui/output_window.lua",
+          "lua/opencode/ui/float_layout.lua",
+          "lua/opencode/state/ui.lua",
+          "lua/opencode/keymap.lua",
+          "lua/opencode/commands/handlers/window.lua"
+        ],
+        "entrypoints": [
+          ":Opencode toggle",
+          ":Opencode open input",
+          ":Opencode open output",
+          ":Opencode toggle_focus",
+          ":Opencode toggle_zoom",
+          ":Opencode swap",
+          ":Opencode close"
+        ],
+        "mechanism": "Create scratch buffers, mount them in split/float windows, store handles in the state store, and route window actions through the command dispatcher. Closing hides buffers when ui.persist_state is true; otherwise state is discarded.",
+        "data_flow": [
+          "setup -> ui module -> create buffer/window -> state.ui set handles",
+          "window handler -> open/close/resize/focus -> state.ui update",
+          "input submission -> session_runtime -> transport"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Replace Neovim window API with Vim splits, popup_create for floating dialogs, and bufadd()/bufload() for scratch buffers."
+      }
+    },
+    {
+      "id": "streaming-transcript-rendering",
+      "name": "Streaming transcript renderer for messages, parts, tools and reasoning",
+      "description": "Renders user/assistant messages, text deltas, reasoning blocks, tool calls and tool output into the output buffer while events arrive. Supports folds, tool output toggles, reasoning toggles, message limits, lazy rendering by viewport, and scroll anchoring.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/renderer.lua",
+          "lua/opencode/ui/renderer/session.lua",
+          "lua/opencode/ui/renderer/batch.lua",
+          "lua/opencode/ui/renderer/flush.lua",
+          "lua/opencode/ui/renderer/entries.lua",
+          "lua/opencode/ui/renderer/scroll.lua",
+          "lua/opencode/ui/output.lua",
+          "lua/opencode/ui/formatter.lua",
+          "lua/opencode/ui/formatter/tool_registry.lua",
+          "lua/opencode/ui/render_state.lua"
+        ],
+        "entrypoints": [
+          "state store subscription",
+          "SSE observation change events",
+          "output window refresh actions"
+        ],
+        "mechanism": "Normalized message entries are formatted into an Output object containing lines, extmarks, folds and contextual actions. The renderer diffs/updates the buffer in batches, throttles streaming updates, and defers Markdown rendering while the user message count is above a threshold. Tool-specific formatters are selected from a registry; unknown tools fall back to generic or MCP formatting.",
+        "data_flow": [
+          "SSE event -> observation.ingest -> state changes",
+          "renderer collects visible entries -> formatter per part -> Output object",
+          "batch renderer writes lines into output buffer and attaches extmarks/folds",
+          "scroll module preserves bottom/top anchoring during updates"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium-high. Line lists and text properties map well, but Neovim extmark/fold semantics must be rebuilt with prop_add/prop_add_list, sign_place and manual folds. Streaming batching needs a timer-based debounce."
+      }
+    },
+    {
+      "id": "markdown-output",
+      "name": "Markdown rendering and syntax highlighting in the output buffer",
+      "description": "The output buffer uses the opencode_output filetype with Markdown Treesitter highlighting. Optional render-markdown.nvim or markview.nvim renders after updates; rendering is debounced during streaming.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/output_window.lua",
+          "lua/opencode/ui/output.lua",
+          "lua/opencode/config.lua (ui.output.rendering)",
+          "lua/opencode/ui/renderer.lua"
+        ],
+        "mechanism": "Set filetype opencode_output, enable Treesitter Markdown, then call an optional renderer if installed. ui.output.rendering.markdown_debounce_ms and markdown_on_idle control when rendering runs. A user hook on_data_rendered allows custom post-processing.",
+        "data_flow": [
+          "renderer writes text -> debounce timer -> optional render-markdown/markview call",
+          "treesitter provides syntax highlighting in the buffer"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "Limited fidelity. Vim 9.1 has syntax/markdown.vim and conceal, not Treesitter. Code fences, headings and lists can be highlighted with syntax/matchaddpos; full inline rendering is not portable without a custom parser."
+      }
+    },
+    {
+      "id": "multi-session-panel-tabs",
+      "name": "Multiple sessions in internal panel tabs",
+      "description": "Each panel tab has its own session, draft, model and context. Tabs live inside the panel, not as Neovim tabpages. A tab strip shows tabs and background permission/question indicators. Tabs are grouped by OpenCode project and restored on startup.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/state/session_tabs.lua",
+          "lua/opencode/services/session_runtime.lua",
+          "lua/opencode/services/session_tab_persistence.lua",
+          "lua/opencode/ui/tab_strip.lua",
+          "lua/opencode/ui/session_tab_notifications.lua",
+          "lua/opencode/commands/handlers/session.lua"
+        ],
+        "entrypoints": [
+          ":Opencode tab new|select|previous|next|close",
+          ":Opencode session new",
+          ":Opencode session select"
+        ],
+        "mechanism": "A tab model stores tab id, session id, directory binding, draft, model/variant and lock state. Switching a tab swaps the active session/draft/model/context in state and re-renders the panel. Persistence writes project-scoped snapshots under stdpath('state')/opencode/session-tabs/.",
+        "data_flow": [
+          "create tab -> assign session -> state.session_tabs -> panel render",
+          "switch tab -> save draft -> swap active session -> load transcript -> render",
+          "project cwd change -> save group -> load target group"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium. Model and persistence are portable; Vim tabpages can be used as a simpler substitute, but internal panel tabs require a custom tab-strip buffer/statusline and state machine."
+      }
+    },
+    {
+      "id": "session-management",
+      "name": "Session picker and lifecycle management",
+      "description": "List project or global sessions, open, create, rename, delete, fork, share, unshare, compact, and navigate child/parent/sibling sessions created by subagents. Includes read-only child sessions.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/services/session_runtime.lua",
+          "lua/opencode/ui/session_picker.lua",
+          "lua/opencode/commands/handlers/session.lua",
+          "lua/opencode/protocols/v1/operations.lua",
+          "lua/opencode/protocols/v2/operations.lua"
+        ],
+        "entrypoints": [
+          ":Opencode session select|new|rename|navigate|compact|share|unshare",
+          ":Opencode select_session",
+          ":Opencode timeline"
+        ],
+        "mechanism": "Protocol operations expose list/create/delete/rename/fork/share/compact. Session runtime normalizes sessions, filters root vs child, and manages active session/panel tab selection. Subagent sessions are detected via parent IDs.",
+        "data_flow": [
+          "picker -> session_runtime.select_session -> protocol operation",
+          "response -> state.session -> panel switch -> render"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High for core CRUD; low for features that depend on unavailable server endpoints (share/compact on V2 variants)."
+      }
+    },
+    {
+      "id": "timeline-undo-fork",
+      "name": "Timeline of prompts with undo and fork",
+      "description": "A picker lists user prompts in the session; selecting jumps to a message, undoes back to it, or forks a new session from it. Undo can also revert files changed by the agent.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/commands/handlers/session.lua",
+          "lua/opencode/ui/timeline_picker.lua",
+          "lua/opencode/protocols/v2/operations.lua (fork_session, revert_message, unrevert_messages)",
+          "lua/opencode/git_review.lua",
+          "lua/opencode/snapshot.lua"
+        ],
+        "mechanism": "Build timeline entries from observed messages, then call the protocol fork or revert endpoints. V2 uses /fork, /revert/stage and DELETE /revert. V1 uses /fork, /revert and /unrevert. Reverting files is delegated to snapshot/git-review logic.",
+        "data_flow": [
+          "observation messages -> timeline picker items",
+          "choice -> fork/revert operation -> state refresh -> render"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High for picker/flow; the server operations are REST calls. File-revert semantics depend on OpenCode version."
+      }
+    },
+    {
+      "id": "context-engine",
+      "name": "Editor context collection with change tracking and de-duplication",
+      "description": "Automatically includes the current file, visual selections, diagnostics, cursor data, entire buffer, Git staged diff, mentioned files, review comments and subagents. Tracks what was already sent so unchanged context is not re-sent. A context bar shows/toggles what will be sent.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/context.lua",
+          "lua/opencode/context/base_context.lua",
+          "lua/opencode/context/chat_context.lua",
+          "lua/opencode/context/quick_chat_context.lua",
+          "lua/opencode/ui/context_bar.lua",
+          "lua/opencode/ui/mention.lua",
+          "lua/opencode/ui/reference_parser.lua",
+          "lua/opencode/state/context.lua"
+        ],
+        "entrypoints": [
+          "prompt submission",
+          ":Opencode add_visual_selection",
+          ":Opencode add_visual_selection_inline",
+          ":Opencode clear_files",
+          ":Opencode clear_selections",
+          "# context picker in input"
+        ],
+        "mechanism": "Capture buffer/window/cursor/selection before opening UI. Build context payloads, hash/compare against the last sent context per session, and attach only deltas where supported. Selections are stored as file+range+text; mentions as file paths; diagnostics filtered by range and severity. V2 sends editor context as named file attachments under an editor-context: prefix; V1 embeds synthetic metadata parts.",
+        "data_flow": [
+          "current buffer/selection -> context provider -> payload",
+          "payload diff vs previous_context -> message parts/attachments",
+          "submit -> state.context sent tracking -> context bar refresh"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium-high. File/range capture is native via getpos/getregion. Diagnostics are limited in vanilla Vim (quickfix/location list rather than a diagnostic API). Git diff requires shelling out to git. Review-comment context is custom."
+      }
+    },
+    {
+      "id": "prompt-input-and-history",
+      "name": "Prompt input, history and inline context gestures",
+      "description": "The input is a normal buffer with multiline editing, prompt history, @ file/agent mentions, ~ file picker, / slash commands, # context toggles, image paste, and completion integration.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/input_window.lua",
+          "lua/opencode/ui/completion.lua",
+          "lua/opencode/ui/completion/*.lua",
+          "lua/opencode/ui/mention.lua",
+          "lua/opencode/ui/contextual_actions.lua",
+          "lua/opencode/history.lua",
+          "lua/opencode/slash_commands.lua"
+        ],
+        "mechanism": "Insert-mode mappings trigger pickers or completion. History is stored as JSONL in stdpath('data')/opencode/history.jsonl. Up/Down step through history while preserving the unsent draft. Context gestures insert references into the draft and/or context state.",
+        "data_flow": [
+          "input buffer text -> submit -> context formatter",
+          "@ or # -> picker -> insert reference / toggle context",
+          "history file -> next/prev -> replace input text"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Use a normal scratch buffer, complete(), popup_menu(), TextChanged autocmds and a JSONL history file. input() is a simpler alternative but blocks event processing."
+      }
+    },
+    {
+      "id": "provider-model-variant-agent-selection",
+      "name": "Provider, model, variant and agent selection",
+      "description": "Pick providers/models with favorites and recent models; choose model variants; cycle agents or select from custom agents. New sessions default to the configured agent.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/model_picker.lua",
+          "lua/opencode/model_state.lua",
+          "lua/opencode/services/agent_model.lua",
+          "lua/opencode/commands/handlers/agent.lua",
+          "lua/opencode/protocols/v1/operations.lua",
+          "lua/opencode/protocols/v2/operations.lua"
+        ],
+        "entrypoints": [
+          ":Opencode models",
+          ":Opencode variant",
+          ":Opencode agent select|build|plan",
+          ":Opencode cycle_variant"
+        ],
+        "mechanism": "Fetch provider/model catalog and agent lists from the server, cache favorites/recent choices, and set session model/agent via protocol operations. Variants are remembered per model.",
+        "data_flow": [
+          "picker -> provider/model selection -> set_session_model / set_session_agent",
+          "response -> model state -> footer/status refresh"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Catalog fetch and picker are straightforward; only the UI polish (favorites, previews) needs custom work."
+      }
+    },
+    {
+      "id": "permissions-and-questions",
+      "name": "Permission and question dialogs",
+      "description": "Permission requests appear in the output with Allow once/Always/Reject choices; questions are rendered with selectable answers and an inline Other input. The same actions are available as Ex commands.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/permission_window.lua",
+          "lua/opencode/ui/permission/permission.lua",
+          "lua/opencode/ui/question_window.lua",
+          "lua/opencode/commands/handlers/permission.lua",
+          "lua/opencode/services/session_runtime.lua",
+          "lua/opencode/state/optimistic.lua"
+        ],
+        "entrypoints": [
+          ":Opencode permission accept|accept_all|deny [index]",
+          "output-buffer choices 1/2/3 or Enter",
+          "question answer actions"
+        ],
+        "mechanism": "SSE permission.asked/question.asked events create pending state. A dialog renders choices in the output or a popup, then calls the reply endpoint (V2 /permission/{id}/reply; V1 /permission/{id}/reply and /question/{id}/reply). Optimistic state prevents duplicate replies.",
+        "data_flow": [
+          "SSE event -> pending_permissions state -> dialog",
+          "user choice -> protocol reply -> optimistic clear -> next event confirms"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. popup_menu()/inputlist()/confirm() can replace dialogs; the hard part is handling replies while a modal picker is open."
+      }
+    },
+    {
+      "id": "session-diff-review-v2",
+      "name": "V2 session diff review with inline comments",
+      "description": "Opens a tab with a changed-file tree and side-by-side/unified diff for a message range. Users can comment on lines/selections; comments become context/subsequent prompts. Supports jumping to the working file, next/prev file/change and revert actions.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/session_diff.lua",
+          "lua/opencode/ui/diff_tab.lua",
+          "lua/opencode/git_review.lua",
+          "lua/opencode/review_anchor.lua",
+          "lua/opencode/protocols/v2/operations.lua (diff_session)",
+          "lua/opencode/context/chat_context.lua (review comments)"
+        ],
+        "entrypoints": [
+          ":Opencode diff open|next|prev|close",
+          "keymaps in session_diff panes",
+          "D on an edit/patch tool block"
+        ],
+        "mechanism": "V2 GET /api/session/{id}/diff?from=&to=&context= returns per-file patches. The review tab renders a file list plus before/after preview, using the server's snapshots. Comments are stored as review-comment context with file/line/range and rendered as signs/properties. Revert uses V2 revert/stage and snapshot endpoints.",
+        "data_flow": [
+          "diff_open -> diff_session API -> file model",
+          "session_diff.open -> diff buffers/tab -> keymaps",
+          "comment save -> review comment state -> context bar/input mention",
+          "revert -> protocol operation -> refresh"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium-high. :diffpatch/:diffsplit, :diffget/:diffput and ]c/[c are native in Vim 9.1. File trees, inline comments and signs need custom popup/buffer UI; snapshot semantics depend on the server."
+      }
+    },
+    {
+      "id": "v1-snapshots",
+      "name": "V1 Git-worktree snapshots, revert and restore points",
+      "description": "Experimental V1-only snapshots of the workspace. Users can diff a snapshot, revert one file/all files, and restore previous state from a restore point. Snapshot actions are available from the output buffer and Ex commands.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/snapshot.lua",
+          "lua/opencode/git_review.lua",
+          "lua/opencode/commands/handlers/diff.lua"
+        ],
+        "mechanism": "Use a Git worktree/snapshot directory under the plugin's snapshot path. Capture before changes, compare working tree against snapshot, and restore files with Git plumbing. Every revert first creates a restore point.",
+        "data_flow": [
+          "prompt breakpoint -> snapshot create",
+          "diff action -> git diff snapshot vs working tree",
+          "revert -> save restore point -> checkout/apply files"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium. Shelling out to git is portable; path handling, worktree state and restore-point safety are the risk areas."
+      }
+    },
+    {
+      "id": "quick-chat-inline-edit",
+      "name": "Quick chat: inline replacement without opening the panel",
+      "description": "Sends the cursor line plus surrounding lines or the visual selection to a temporary session, then replaces the selected/cursor lines with the reply. Includes a spinner, cancellation and optional context tags (#errors, #warnings, #buffer, #file, #git_diff).",
+      "implementation": {
+        "modules": [
+          "lua/opencode/quick_chat.lua",
+          "lua/opencode/quick_chat/spinner.lua",
+          "lua/opencode/context/quick_chat_context.lua",
+          "lua/opencode/services/session_runtime.lua",
+          "lua/opencode/commands/handlers/workflow.lua"
+        ],
+        "entrypoints": [
+          ":Opencode quick_chat [instructions]",
+          "visual/range command",
+          "api.quick_chat()"
+        ],
+        "mechanism": "Create a temporary session with default replacement instructions, submit the range plus requested context, observe the streaming response, then replace the target buffer lines. A spinner is drawn at the cursor; cancellation interrupts the session and optionally deletes it.",
+        "data_flow": [
+          "capture range -> create temp session -> submit",
+          "observe assistant text -> accumulate -> replace lines",
+          "cleanup/delete session unless debug.quick_chat.keep_session"
+        ],
+        "complexity": "medium-high",
+        "vim9_portability": "Medium-high. Text replacement and timers are native; a virtual spinner can use Vim 9.1 text properties with text, and the temporary-session cleanup is REST."
+      }
+    },
+    {
+      "id": "commands-api-dispatcher",
+      "name": "Unified Ex command, keymap, slash-command and Lua API dispatcher",
+      "description": "Every action goes through one command dispatcher with parsing, validation, lifecycle hooks and consistent error reporting. The Lua API exposes the same actions programmatically.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/commands/init.lua",
+          "lua/opencode/commands/parse.lua",
+          "lua/opencode/commands/dispatch.lua",
+          "lua/opencode/commands/handlers/*.lua",
+          "lua/opencode/api.lua",
+          "lua/opencode/types.lua"
+        ],
+        "mechanism": "Commands are declared with aliases and handlers. Parsed intents carry name, args, options and hook key. Dispatch runs config hooks plus registered lifecycle hooks (before/after/error/finally), then binds the handler. API exports are generated from action groups so they share the same path.",
+        "data_flow": [
+          "Ex command / keymap / API -> parse -> execute_parsed_intent",
+          "hooks -> handler -> optional Promise result"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Vim user commands with -nargs/-range/-complete, a dispatch dict and :def handlers cover this well."
+      }
+    },
+    {
+      "id": "slash-commands-skills",
+      "name": "Slash-command picker, built-in slash commands, user commands and skills",
+      "description": "Type / in input to browse built-ins and user-defined OpenCode commands/skills. Local Lua slash commands can be registered. Skills can be activated natively on V2 or sent as prompt content on V1.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/slash_commands.lua",
+          "lua/opencode/services/slash_registry.lua",
+          "lua/opencode/commands/slash.lua",
+          "lua/opencode/ui/completion/skills.lua",
+          "lua/opencode/protocols/v1/operations.lua",
+          "lua/opencode/protocols/v2/operations.lua"
+        ],
+        "mechanism": "A registry merges built-ins, local registrations, server commands and skills. Selection either dispatches a plugin action, runs a server command via /api/session/{id}/command, or activates a skill via /api/experimental/session/{id}/skill (V2) or prompt content (V1).",
+        "data_flow": [
+          "input '/' -> picker -> registry lookup -> action/command/skill",
+          "server command response -> session messages -> render"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. A Vim dict registry and popup picker are sufficient; capability detection via /openapi.json is optional."
+      }
+    },
+    {
+      "id": "server-lifecycle-and-discovery",
+      "name": "Server discovery, startup, authentication and lifecycle",
+      "description": "Works with a local V1 serve process, a V2 background service, a configured remote URL, or a user-supplied spawn command. Handles port selection, passwords, password files, environment credentials, path maps, health checks, retries, auto-kill and shutdown.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/server_job.lua",
+          "lua/opencode/opencode_server.lua",
+          "lua/opencode/port_mapping.lua",
+          "lua/opencode/auth.lua",
+          "lua/opencode/curl.lua",
+          "lua/opencode/protocols/connection.lua"
+        ],
+        "mechanism": "If server.url is set, probe it. Otherwise detect V2 CLI support via 'opencode --help' containing a service subcommand, call 'opencode service status/start' and 'opencode service get password', then probe /api/info. If not V2, use the legacy path: reuse/spawn 'opencode serve' on a fixed or auto port, generate/persist a password, and probe /global/health. Requests carry Basic auth and x-opencode-directory.",
+        "data_flow": [
+          "ensure_server -> configured/custom URL -> native service -> legacy spawn",
+          "health probe -> protocol adapter -> mark_ready -> SSE connect",
+          "VimLeavePre -> close connection -> optional kill spawned process"
+        ],
+        "complexity": "high",
+        "vim9_portability": "High in principle: job_start() can call the CLI/curl and timers can poll. Process reference counting and password-file permissions are OS-specific."
+      }
+    },
+    {
+      "id": "dual-protocol-v1-v2",
+      "name": "Automatic OpenCode V1/V2 protocol support",
+      "description": "One plugin supports both server generations. Health probing selects V1 or V2; operations and event reducers are adapted per protocol; features degrade or throw clear errors when an endpoint is unavailable.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/protocols/connection.lua",
+          "lua/opencode/protocols/v1/*.lua",
+          "lua/opencode/protocols/v2/*.lua",
+          "lua/opencode/protocols/contract_check.lua"
+        ],
+        "mechanism": "An adapter contract defines health_path, operations module and observation module. V2 operations use /api/* with data envelopes and JSON bodies; V1 operations use legacy paths such as /session, /permission, /global/event. Normalizers map both into shared message/part/session shapes.",
+        "data_flow": [
+          "probe -> adapter -> operations/observation modules",
+          "raw response/event -> normalize -> shared state"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium. The adapter interface is portable; the surface area is large and V1/V2 shapes drift. A Vim9 port should start V2-only and add a V1 adapter behind the same interface."
+      }
+    },
+    {
+      "id": "sse-event-observation-state",
+      "name": "SSE event stream, observation reducers and state store",
+      "description": "A persistent SSE connection feeds incremental events into per-session observations. Observations maintain message order and normalized parts, permissions, questions and sync status. State changes fan out to the renderer and UI.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/transport.lua",
+          "lua/opencode/curl.lua",
+          "lua/opencode/protocols/v1/observation.lua",
+          "lua/opencode/protocols/v2/observation/*.lua",
+          "lua/opencode/state/store.lua",
+          "lua/opencode/state/*.lua",
+          "lua/opencode/throttling_emitter.lua"
+        ],
+        "mechanism": "transport.stream() runs curl with -N and parses SSE frames, invoking on_chunk. Observation modules route event types into message/part/resource buckets, apply deltas, and mark dirty resources. The store notifies subscribers; the renderer schedules a throttled refresh.",
+        "data_flow": [
+          "curl SSE -> chunk parser -> event JSON",
+          "event -> observation ingest -> dirty markers",
+          "store subscription -> renderer flush -> UI"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium-high. SSE parsing and a reducer dict are portable. Vim job callbacks and timers replace libuv/schedule; backpressure and reconnect logic must be written explicitly."
+      }
+    },
+    {
+      "id": "event-hooks-autocmds",
+      "name": "User autocmds, plugin hooks and command lifecycle hooks",
+      "description": "Raw server events are forwarded as User autocmds (OpencodeEvent:<type>). Plugin hooks cover file edits, session load, idle/done-thinking, permission requests, questions and topbar/footer rendering. Command hooks run before/after/error/finally.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/protocols/v1/observation.lua",
+          "lua/opencode/protocols/v2/observation/events.lua",
+          "lua/opencode/commands/dispatch.lua",
+          "lua/opencode/config.lua (hooks)"
+        ],
+        "mechanism": "After decoding an event, call nvim_exec_autocmds('User', {pattern='OpencodeEvent:'..type, data={event=...}}). Hook callbacks are invoked from the relevant service (e.g. on_done_thinking when a session becomes idle) and from the dispatcher lifecycle.",
+        "data_flow": [
+          "SSE event -> decode -> User autocmd",
+          "service state transition -> config hook",
+          "command dispatch -> lifecycle hooks -> handler"
+        ],
+        "complexity": "low-medium",
+        "vim9_portability": "High. Vim supports User autocmds via doautocmd, but cannot attach arbitrary data; use a global event dict plus a monotonically increasing id."
+      }
+    },
+    {
+      "id": "completion-engine",
+      "name": "Prompt completion engine (files, context, slash commands, skills, subagents) and in-process LSP",
+      "description": "Completion in the input for @ mentions, / slash commands, # context items, skills and subagents. Providers can opt into built-in completion or an LSP-based source. File completion can use the server or a CLI tool.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/completion.lua",
+          "lua/opencode/ui/completion/commands.lua",
+          "lua/opencode/ui/completion/context.lua",
+          "lua/opencode/ui/completion/files.lua",
+          "lua/opencode/ui/completion/skills.lua",
+          "lua/opencode/ui/completion/subagents.lua",
+          "lua/opencode/ui/completion/kind.lua",
+          "lua/opencode/lsp/opencode_ls.lua"
+        ],
+        "mechanism": "A completion source registry with priorities and trigger characters feeds either a built-in completion menu or an in-process LSP server. File sources call the server find-file endpoint or a configured CLI tool, with ignore patterns and limits.",
+        "data_flow": [
+          "insert-mode trigger -> source registry -> filtered items",
+          "accept item -> insert text / on_complete callback"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "Medium. Vim has complete()/completefunc/omnifunc and popup menus, not LSP. A custom complete function can reproduce placeholder and file completion; no in-process LSP is needed."
+      }
+    },
+    {
+      "id": "picker-abstraction",
+      "name": "Picker abstraction across snacks/telescope/fzf-lua/mini.pick/vim.ui.select",
+      "description": "Uses whichever picker the user already has, otherwise falls back to vim.ui.select. Pickers are used for sessions, models, agents, history, MCP, mentions, timeline and review ranges.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/picker.lua",
+          "lua/opencode/ui/base_picker.lua",
+          "lua/opencode/ui/*picker*.lua"
+        ],
+        "mechanism": "Detect preferred_picker or available plugins; adapt item formatting, previews, multi-select and keymaps per backend. A base picker normalizes the API.",
+        "data_flow": [
+          "action -> picker adapter -> selected item(s) -> handler"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High but different. Vim has popup_menu(), inputlist() and complete(); implement one native picker and optionally shell out/integrate external fuzzy finders."
+      }
+    },
+    {
+      "id": "image-attachments",
+      "name": "Clipboard image attachment",
+      "description": "Paste an image from the system clipboard into the prompt/context. The selected model must accept images.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/image_handler.lua",
+          "lua/opencode/ui/input_window.lua",
+          "lua/opencode/context/chat_context.lua"
+        ],
+        "mechanism": "Read the clipboard image with platform tools, encode it, and attach it as an image part/attachment on submit. A temp file may be used depending on the server API.",
+        "data_flow": [
+          "paste key -> image handler -> attachment state -> submit"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "Limitation. Vim 9.1 has no clipboard-image API and no base64_encode(); shell out to wl-paste/xclip/pngpaste and implement base64 or call an external encoder. Windows/macOS need separate code."
+      }
+    },
+    {
+      "id": "code-references-navigation",
+      "name": "Code references, symbol navigation and jump-to-file",
+      "description": "Browses file/symbol references found in the conversation, jumps to files at the cursor, and resolves targets in tool output so users can navigate from chat to code.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/reference_parser.lua",
+          "lua/opencode/ui/reference_facts.lua",
+          "lua/opencode/ui/reference_picker.lua",
+          "lua/opencode/ui/navigation.lua",
+          "lua/opencode/commands/handlers/workflow.lua"
+        ],
+        "mechanism": "Parse file:line references from rendered text and tool results, normalize paths (including server path maps), and use edit/open commands to jump. gf/CR mappings call the navigation module.",
+        "data_flow": [
+          "renderer metadata -> reference facts -> picker/jump",
+          "cursor context -> resolve path -> open buffer/tab"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. :edit, :tabedit, cursor() and path normalization cover this."
+      }
+    },
+    {
+      "id": "persistence-state",
+      "name": "Draft, tab, session and UI persistence",
+      "description": "Panel buffers/drafts survive hiding within a run; panel tabs are persisted per project across restarts; prompt history is global. Deleted sessions and missing directories are skipped on restore.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/services/session_tab_persistence.lua",
+          "lua/opencode/state/session_tabs.lua",
+          "lua/opencode/history.lua",
+          "lua/opencode/state/ui.lua"
+        ],
+        "mechanism": "Serialize tab/session/directory/model/draft metadata to JSON under stdpath('state')/opencode/session-tabs/. Prompt history uses JSONL under stdpath('data')/opencode/history.jsonl. On startup, restore the project group and active tab.",
+        "data_flow": [
+          "cwd/project change or exit -> serialize group",
+          "startup/first use -> load group -> validate dirs/sessions -> restore tabs"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. json_encode/json_decode and writefile/readfile are native; choose XDG paths manually."
+      }
+    },
+    {
+      "id": "statusline-program-status",
+      "name": "Statusline and optional tmux program status",
+      "description": "Shows the active server/model/status in the statusline and optionally in tmux. Program status reflects busy/idle/error states from events.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/ui/program_status.lua",
+          "lua/opencode/services/program_status.lua",
+          "lua/opencode/ui/footer.lua"
+        ],
+        "mechanism": "Track session status from SSE events (busy/idle/retry/error), expose a statusline expression, and optionally write a tmux status string.",
+        "data_flow": [
+          "SSE session.status -> status state -> statusline/tmux render"
+        ],
+        "complexity": "low",
+        "vim9_portability": "High. Vim statusline supports %{Func()} expressions; tmux integration is a shell call."
+      }
+    },
+    {
+      "id": "debug-health-logging",
+      "name": "Health checks, debug views and event capture",
+      "description": "checkhealth validates CLI/curl/config/server/integrations. Debug commands export captured events, open raw messages/sessions/output, and show logs. Optional event capture aids bug reports.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/health.lua",
+          "lua/opencode/log.lua",
+          "lua/opencode/event_capture.lua",
+          "lua/opencode/ui/debug_helper.lua",
+          "lua/opencode/commands/handlers/workflow.lua"
+        ],
+        "mechanism": "Health probes run executable/version/connection checks. Logging is optional and level-based. Event capture stores raw SSE payloads to a file. Debug views open JSON/text in scratch buffers.",
+        "data_flow": [
+          "checkhealth -> health module checks",
+          "debug command -> capture/log file -> buffer"
+        ],
+        "complexity": "low",
+        "vim9_portability": "High. Vim has no checkhealth; implement :Opencode health with echo lines and a log file."
+      }
+    },
+    {
+      "id": "extensibility-registries",
+      "name": "Public extension points: slash commands, completion sources and tool formatters",
+      "description": "Users can register local slash commands, completion sources and tool formatters. Tool formatter overrides can replace built-ins with an explicit opt-in. Registrations are validated and isolated from core errors.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/init.lua",
+          "lua/opencode/services/slash_registry.lua",
+          "lua/opencode/ui/completion.lua",
+          "lua/opencode/ui/formatter/tool_registry.lua"
+        ],
+        "entrypoints": [
+          "register_slash_command/unregister_slash_command",
+          "register_completion_source/unregister_completion_source",
+          "register_tool_formatter/unregister_tool_formatter"
+        ],
+        "mechanism": "Registries validate names, reserve built-ins, wrap callbacks in pcall, and expose hooks for selection/formatting. Tool formatters receive an Output builder API and a normalized part.",
+        "data_flow": [
+          "registration -> registry -> renderer/completion/picker lookup"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Vim dict registries and funcref callbacks work; API shape will differ."
+      }
+    },
+    {
+      "id": "prompt-guard-security",
+      "name": "Prompt guard and sensitive-data controls",
+      "description": "A user callback can block prompts based on mentioned files and editor state. The context bar shows blocked/guarded state. The plugin documents that the agent can still read files through tools; server permissions are the real boundary.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/config.lua (prompt_guard)",
+          "lua/opencode/ui/prompt_guard_indicator.lua",
+          "lua/opencode/context/chat_context.lua",
+          "lua/opencode/commands/handlers/workflow.lua"
+        ],
+        "mechanism": "Before sending, call the guard with mentioned file paths. False, errors or non-booleans block the action. The indicator shows the reason.",
+        "data_flow": [
+          "submit -> guard -> allow/block -> transport or notice"
+        ],
+        "complexity": "low",
+        "vim9_portability": "High. Funcref config and a boolean gate are native."
+      }
+    },
+    {
+      "id": "directory-worktree-binding",
+      "name": "Directory-bound sessions, project groups and worktree support",
+      "description": "Panel tabs are scoped to an OpenCode project. Subdirectories/worktrees with the same project share tabs. Sessions can be opened against another directory without changing cwd. A session lock pins the current group.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/services/session_runtime.lua",
+          "lua/opencode/state/session_tabs.lua",
+          "lua/opencode/protocols/v2/operations.lua (location.directory)",
+          "lua/opencode/server_job.lua (path_map)"
+        ],
+        "mechanism": "Resolve the current project via /api/location or V1 /project/current. Store a directory on each tab/session. Pass location.directory in V2 bodies and x-opencode-directory headers. Path maps translate local/server paths.",
+        "data_flow": [
+          "cwd/project detection -> group key -> tab group",
+          "open_session({directory=...}) -> create/list session in that directory -> bind tab"
+        ],
+        "complexity": "high",
+        "vim9_portability": "Medium. Directory resolution and headers are portable; project grouping and persistence need custom logic."
+      }
+    },
+    {
+      "id": "configuration-keymaps",
+      "name": "Deep configuration and configurable keymaps",
+      "description": "Hundreds of options for windows, output rendering, tools, questions, input, pickers, completion, context, logging, debug, hooks, quick chat and server behavior. Keymaps are grouped by surface and support per-entry mode/desc/nowait and prefix rewriting.",
+      "implementation": {
+        "modules": [
+          "lua/opencode/config.lua",
+          "lua/opencode/keymap.lua"
+        ],
+        "mechanism": "Defaults table deep-merged with setup opts. Keymap tables are normalized and mapped per surface; keymap_prefix rewrites default leader-based mappings. get_key_for_function supports help/status displays.",
+        "data_flow": [
+          "setup(opts) -> defaults merge -> keymap setup -> mappings/commands"
+        ],
+        "complexity": "medium",
+        "vim9_portability": "High. Vim dictionaries, deep merge helper, :nnoremap/:xnoremap and :command are sufficient."
+      }
+    }
+  ],
+  "implementation_pathways": [
+    {
+      "id": "P1-server-acquisition",
+      "name": "Server acquisition and protocol selection pathway",
+      "goal": "Get a ready, authenticated connection whose protocol adapter is known.",
+      "steps": [
+        "If server.url is configured, probe it; if it is a function, resolve it first.",
+        "If a custom spawn_command is configured, call it with port/url/env and probe until ready.",
+        "Otherwise detect V2 CLI support by checking 'opencode --help' for a service subcommand.",
+        "For V2: call 'opencode service status', start it if stopped, read the password with 'opencode service get password', then probe GET /api/info.",
+        "On 404/non-2.x from /api/info, fall back to the V1 path: GET /global/health.",
+        "For V1: reuse or spawn 'opencode serve' on a fixed/auto port, persist a generated password, and probe /global/health.",
+        "Mark the connection ready only after the probe succeeds; publish it to state and attach the SSE stream.",
+        "Track requests and the stream on the connection; close them on VimLeavePre. Kill only servers the plugin spawned and auto_kill allows."
+      ],
+      "modules": [
+        "server_job.lua",
+        "opencode_server.lua",
+        "protocols/connection.lua",
+        "auth.lua",
+        "port_mapping.lua"
+      ],
+      "key_apis": [
+        "vim.system / vim.fn.jobstart",
+        "curl -sS --fail-with-body",
+        "GET /api/info",
+        "GET /global/health",
+        "opencode service status/start/get password",
+        "opencode serve"
+      ],
+      "tradeoffs": [
+        "Native V2 service is the cleanest path but couples to CLI behavior.",
+        "Legacy serve requires password persistence and process cleanup.",
+        "A custom URL must be authoritative: do not silently spawn a local server for it."
+      ]
+    },
+    {
+      "id": "P2-transport-sse",
+      "name": "HTTP + SSE transport pathway",
+      "goal": "Reliable request/response and long-lived event streaming with auth and directory scoping.",
+      "steps": [
+        "Build curl argv as a list (no shell string) with method, headers, auth and JSON body.",
+        "Add x-opencode-directory for V2 so a shared daemon answers for the right project.",
+        "For ordinary requests, collect stdout/stderr and the exit code, decode JSON, and surface HTTP status.",
+        "For SSE, run curl with -N, parse data: frames, treat ':' lines as heartbeats, and json_decode each payload.",
+        "Dispatch decoded events to the protocol observation layer and raw events to User autocmds.",
+        "Maintain a heartbeat deadline (OpenCode sends about every 15s); reconnect or disconnect on silence.",
+        "Track the stream and all in-flight requests on the connection so shutdown is deterministic."
+      ],
+      "modules": [
+        "curl.lua",
+        "transport.lua",
+        "protocols/http.lua",
+        "opencode_server.lua"
+      ],
+      "key_apis": [
+        "vim.fn.jobstart",
+        "curl --fail-with-body -N",
+        "vim.json.decode",
+        "vim.uri_encode",
+        "vim.uv.new_timer"
+      ],
+      "tradeoffs": [
+        "curl handles TLS and proxies that Neovim's job API does not.",
+        "SSE chunk boundaries are arbitrary; a line/frame accumulator is required.",
+        "libuv timers/schedule are Neovim-only; a Vim port needs timer_start and job callbacks."
+      ]
+    },
+    {
+      "id": "P3-observation-state-render",
+      "name": "Event -> observation -> state -> render pathway",
+      "goal": "Turn raw streaming events into a stable transcript without re-rendering everything on every delta.",
+      "steps": [
+        "Observation creates a per-session record with ordered message ids and a parts map.",
+        "Route event types: message/part events mutate messages; permission/question events create pending entries; file events mark reloads.",
+        "Coalesce deltas and mark dirty resources; avoid full list rebuilds for every token.",
+        "Notify the state store; the renderer schedules a throttled flush (configurable event_throttle_ms).",
+        "Formatter converts each visible message/part into an Output object with lines, extmarks, folds and actions.",
+        "Batch-write buffer lines and properties; preserve scroll anchoring and optional lazy rendering.",
+        "Debounce Markdown rendering while streaming; run it on idle when the user message count is zero."
+      ],
+      "modules": [
+        "protocols/*/observation*.lua",
+        "state/store.lua",
+        "state/renderer.lua",
+        "ui/renderer.lua",
+        "ui/formatter.lua",
+        "ui/output.lua"
+      ],
+      "key_apis": [
+        "vim.api.nvim_buf_set_lines",
+        "vim.api.nvim_buf_set_extmark",
+        "vim.api.nvim_buf_set_folds",
+        "vim.schedule / vim.uv.now"
+      ],
+      "tradeoffs": [
+        "Fine-grained part updates are more complex but necessary for smooth streaming.",
+        "A full rebuild is simpler but will flicker and lose folds/cursor.",
+        "Vim text properties are a good replacement for extmarks but have different lifecycle rules."
+      ]
+    },
+    {
+      "id": "P4-prompt-context",
+      "name": "Prompt capture, context formatting and submission pathway",
+      "goal": "Send the user's intent plus the right editor context, without duplicates.",
+      "steps": [
+        "Capture buffer/win/cursor/selection before opening any UI so focus changes do not corrupt context.",
+        "Normalize selections to file + 1-based line/column ranges; read literal text for scratch buffers.",
+        "Collect enabled context: current file, selection, diagnostics, cursor window, buffer, git diff, mentions, review comments, subagents.",
+        "Diff against the last sent context for this session; send only changed items where the server supports deltas.",
+        "Encode context per protocol: V1 synthetic metadata parts; V2 named file attachments with editor-context: prefixes.",
+        "Resolve/create the target session (active panel tab, explicit directory, or most-recent root session).",
+        "Submit via the protocol prompt endpoint and optimistically insert the user message.",
+        "Clear/resume the visual selection and update sent-context tracking."
+      ],
+      "modules": [
+        "context.lua",
+        "context/base_context.lua",
+        "context/chat_context.lua",
+        "context/quick_chat_context.lua",
+        "services/session_runtime.lua",
+        "protocols/*/operations.lua"
+      ],
+      "key_apis": [
+        "getpos(\"'<\") / getpos(\"'>\")",
+        "getregion()",
+        "vim.diagnostic.get",
+        "git diff --cached",
+        "POST /api/session/{id}/prompt",
+        "POST /session/{id}/message"
+      ],
+      "tradeoffs": [
+        "Automatic context is convenient but can leak sensitive code.",
+        "Delta tracking saves tokens but can confuse users who expect a full re-send.",
+        "V2 attachments are more structured; V1 text parts are easier to inspect but render as JSON to humans."
+      ]
+    },
+    {
+      "id": "P5-session-tabs",
+      "name": "Session and panel-tab lifecycle pathway",
+      "goal": "Keep multiple conversations and drafts isolated without abusing editor tabpages.",
+      "steps": [
+        "Model a tab with id, session id, directory, draft, model/variant, context and lock.",
+        "On create/switch, save the outgoing draft and active context, then swap the active session and re-render.",
+        "Bind a tab to the OpenCode project so subdirectories/worktrees share a group.",
+        "On cwd change, persist the outgoing group and load the target group; honor a session lock.",
+        "Persist to a JSON snapshot under stdpath('state'); validate directories/sessions on restore.",
+        "Notify the user when a background tab receives a permission or question."
+      ],
+      "modules": [
+        "state/session_tabs.lua",
+        "services/session_runtime.lua",
+        "services/session_tab_persistence.lua",
+        "ui/session_tab_notifications.lua"
+      ],
+      "key_apis": [
+        "vim.json.encode/decode",
+        "vim.fn.stdpath",
+        "vim.fn.getcwd",
+        "DirChanged autocmd"
+      ],
+      "tradeoffs": [
+        "Internal tabs give per-session drafts but require a custom tab strip.",
+        "Vim tabpages are simpler but conflict with diff/review tabs and have different semantics.",
+        "Project grouping is powerful but hard to get right for worktrees/remote servers."
+      ]
+    },
+    {
+      "id": "P6-diff-review",
+      "name": "Diff review and inline feedback pathway",
+      "goal": "Let the user inspect what the agent changed and send line-specific feedback.",
+      "steps": [
+        "Call GET /api/session/{id}/diff with from/to message ids and large context to obtain per-file patches.",
+        "Open a review tab with a file list and before/after or unified preview.",
+        "Map patches into diff buffers; use native diff mode for navigation.",
+        "On comment, store file/line/range/text and attach a review-comment reference to the next prompt.",
+        "On close with comments, open the input with the comments attached; let the user add instructions.",
+        "For revert, call the session revert/snapshot endpoints and refresh."
+      ],
+      "modules": [
+        "ui/session_diff.lua",
+        "ui/diff_tab.lua",
+        "git_review.lua",
+        "review_anchor.lua",
+        "context/chat_context.lua"
+      ],
+      "key_apis": [
+        "GET /api/session/{id}/diff",
+        ":diffpatch / :diffsplit",
+        "]:diffget / :diffput",
+        "]c / [c",
+        "sign_place / prop_add"
+      ],
+      "tradeoffs": [
+        "Server snapshots are authoritative but may not include local edits since the snapshot.",
+        "Inline comments are high-value but need stable line anchors and a clear stale-comment warning.",
+        "Per-hunk acceptance is not always the same as the server's all-or-nothing permission request."
+      ]
+    },
+    {
+      "id": "P7-quick-chat",
+      "name": "Quick-chat inline edit pathway",
+      "goal": "Make a narrow edit without opening the main panel.",
+      "steps": [
+        "Capture the cursor line ±N or the visual range.",
+        "Create a temporary session with replacement-oriented system instructions.",
+        "Submit the selected text plus requested context tags (#errors, #buffer, #file, #git_diff).",
+        "Observe assistant text until completion (or cancellation).",
+        "Replace only the target lines with the reply; let undo restore the previous text.",
+        "Delete the temporary session unless debugging is enabled."
+      ],
+      "modules": [
+        "quick_chat.lua",
+        "quick_chat/spinner.lua",
+        "context/quick_chat_context.lua",
+        "services/session_runtime.lua"
+      ],
+      "key_apis": [
+        "getline/setline or nvim_buf_set_lines",
+        "timer_start/vim.uv.new_timer",
+        "POST prompt",
+        "POST interrupt",
+        "DELETE session"
+      ],
+      "tradeoffs": [
+        "Temporary sessions are clean but create/delete overhead and may pollute logs.",
+        "Replacing a whole line is safe; replacing a partial range can destroy surrounding syntax.",
+        "Cancellation must race safely with a late response."
+      ]
+    },
+    {
+      "id": "P8-ui-dialogs",
+      "name": "UI layer: windows, input, pickers, dialogs and completion",
+      "goal": "Provide a coherent interaction surface without depending on a specific picker plugin.",
+      "steps": [
+        "Create scratch buffers for input/output and a window layout (split or float).",
+        "Use buffer-local mappings for submit, cancel, pane switch, mentions, slash and history.",
+        "Use a picker adapter for sessions/models/agents/history; fall back to vim.ui.select.",
+        "Render permission/question choices as buffer actions or a dialog.",
+        "Use an in-process LSP or completion function for placeholder/file completion.",
+        "Expose statusline and health surfaces."
+      ],
+      "modules": [
+        "ui/input_window.lua",
+        "ui/output_window.lua",
+        "ui/picker.lua",
+        "ui/completion*.lua",
+        "ui/permission_window.lua",
+        "ui/question_window.lua",
+        "ui/footer.lua",
+        "ui/context_bar.lua"
+      ],
+      "key_apis": [
+        "nvim_open_win/nvim_win_set_buf",
+        "vim.ui.select/vim.ui.input",
+        "vim.lsp.start",
+        "nvim_buf_set_extmark",
+        "nvim_set_hl"
+      ],
+      "tradeoffs": [
+        "Plugin-specific pickers add polish but fragment UX.",
+        "An in-process LSP gives completion-plugin compatibility but is substantial code.",
+        "Rendering choices in the output buffer keeps context but complicates key handling."
+      ]
+    },
+    {
+      "id": "P9-command-dispatch",
+      "name": "Command, API and hook dispatch pathway",
+      "goal": "One implementation for Ex commands, keymaps, slash commands and Lua callers.",
+      "steps": [
+        "Declare command intents with aliases, argument specs and handlers.",
+        "Parse positional/subcommand/options (agent=, model=, variant=, context=).",
+        "Run config-level and registered before hooks; bind the handler.",
+        "Execute, normalize errors, run after/error/finally hooks.",
+        "Expose API wrappers that call the same dispatcher."
+      ],
+      "modules": [
+        "commands/init.lua",
+        "commands/parse.lua",
+        "commands/dispatch.lua",
+        "commands/handlers/*.lua",
+        "api.lua"
+      ],
+      "key_apis": [
+        "vim.api.nvim_create_user_command",
+        "vim.tbl_deep_extend",
+        "pcall/xpcall"
+      ],
+      "tradeoffs": [
+        "A dispatcher adds upfront structure but prevents drift between commands and API.",
+        "Hook ordering must be documented and deterministic.",
+        "Async handlers need consistent error propagation."
+      ]
+    },
+    {
+      "id": "P10-extensibility",
+      "name": "Registry and extension pathway",
+      "goal": "Let users add commands, completion sources and tool renderers without forking.",
+      "steps": [
+        "Maintain typed registries with reserved names.",
+        "Validate registrations at setup time and reject duplicates.",
+        "Isolate callbacks with pcall and log failures.",
+        "Expose unregister functions and document lifecycle guarantees."
+      ],
+      "modules": [
+        "services/slash_registry.lua",
+        "ui/completion.lua",
+        "ui/formatter/tool_registry.lua"
+      ],
+      "key_apis": [
+        "funcref/table callbacks",
+        "pcall",
+        "vim.log"
+      ],
+      "tradeoffs": [
+        "Rich registries increase API surface and compatibility obligations.",
+        "Tool formatters need a stable Output API and normalized part schema."
+      ]
+    }
+  ],
+  "strengths": [
+    "Very complete feature set: panel, tabs, context, review, quick chat, pickers, commands and extensibility.",
+    "Dual V1/V2 protocol architecture with a clear adapter boundary.",
+    "Strong context de-duplication and change tracking.",
+    "Session diff review with inline comments is a differentiated workflow.",
+    "Unified command/API/hook layer reduces behavioral drift.",
+    "Rich rendering for tool calls, reasoning and Markdown.",
+    "Project-scoped panel tabs and persistence are well thought out."
+  ],
+  "weaknesses_and_risks": [
+    "Large codebase (about 49.6k Lua lines) with significant Neovim-specific surface, making a Vim9 port expensive.",
+    "Heavy UI rendering logic relies on extmarks, folds and Treesitter, none of which map 1:1 to Vim 9.1.",
+    "Protocol and event schemas drift with OpenCode releases; many feature paths are version-gated.",
+    "The V1 snapshot feature is explicitly experimental and can overwrite files.",
+    "Many integrations (pickers, completion engines, renderers) are optional and add test-matrix complexity.",
+    "Some features (share/compact/skills) depend on server endpoints that may be missing or change.",
+    "Automatic context is powerful but has privacy implications; the prompt guard is advisory only."
+  ],
+  "notable_patterns": [
+    "Adapter + normalizer for two protocol generations.",
+    "Observation/reducer rather than ad-hoc event handling.",
+    "State store with domain-specific setters and subscriptions.",
+    "Render model (Output object) separated from buffer writes.",
+    "Command intent + lifecycle hook pipeline.",
+    "Registries with reserved names and pcall isolation.",
+    "Project-scoped persistence with validation on restore."
+  ]
+}
