@@ -4,6 +4,9 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 vim_bin=${VIM:-vim}
 
-exec "$vim_bin" -Nu NONE -es -i NONE \
-  --cmd "set runtimepath^=$root" \
-  -S "$root/test/p0.vim"
+for test_name in p0 p1; do
+  echo "== $test_name =="
+  "$vim_bin" -Nu NONE -es -i NONE \
+    --cmd "set runtimepath^=$root" \
+    -S "$root/test/$test_name.vim"
+done
