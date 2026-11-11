@@ -1,0 +1,189 @@
+*opencode9.txt*  A Vim 9.1-native OpenCode client
+
+==============================================================================
+CONTENTS                                                     *opencode9-contents*
+
+  1. Introduction ........................ |opencode9-introduction|
+  2. Requirements ........................ |opencode9-requirements|
+  3. Commands ............................ |opencode9-commands|
+  4. Configuration ....................... |opencode9-configuration|
+  5. Events .............................. |opencode9-events|
+  6. Functions ........................... |opencode9-functions|
+  7. Development ......................... |opencode9-development|
+
+==============================================================================
+1. INTRODUCTION                                             *opencode9-introduction*
+
+opencode9.vim is a Vim 9.1-native client for OpenCode. It speaks the OpenCode
+V2 HTTP and SSE APIs and keeps its core independent of windows and buffers.
+The UI is added in layers: prompt and context workflows first, then a split
+panel, permissions and diff review.
+
+This help file describes the P0 walking skeleton. Commands marked with a phase
+such as (P1) are reserved and report that they are not implemented yet.
+
+==============================================================================
+2. REQUIREMENTS                                             *opencode9-requirements*
+
+- Vim 9.1 or newer.
+- The |+job|, |+channel| and |+timers| features.
+- The |+textprop|, |+popupwin|, |+diff| and |+quickfix| features for later
+  phases.
+- curl(1) on $PATH for HTTPS requests and server-sent events.
+
+Run |:Opencode| health to check the current build.
+
+==============================================================================
+3. COMMANDS                                                   *opencode9-commands*
+
+                                                                 *:Opencode*
+:Opencode [command] [arguments]
+                        Execute an opencode9 command. With no argument, show
+                        the command summary. Command names and common
+                        arguments are completed with <Tab>.
+
+                        The command accepts a range. Later prompt commands use
+                        it to scope context. A ! is reserved for debugging.
+
+                                                        *opencode9-command-list*
+help [doc]              Show the command summary. With "doc", open this help
+                        file.
+version                 Show the plugin and Vim versions.
+health                  Run environment checks and list missing capabilities.
+config [path]           Print the merged configuration as JSON. With a dotted
+                        path such as "panel.height", print only that value.
+config validate         Validate the active configuration.
+server ...              Manage discovery and the connection. (P1)
+session ...             List, create, open or delete conversations. (P4)
+prompt [text]           Send a prompt with @ placeholders. (P2)
+ask [text]              Prompt for text and send it. (P2)
+operator                Send the selected range through 'operatorfunc'. (P2)
+context ...             Inspect or clear captured context. (P2)
+toggle                  Toggle the conversation panel. (P3)
+open ...                Open the input, output or panel window. (P3)
+close ...               Close a panel window. (P3)
+permission ...          Accept or deny pending requests. (P5)
+diff ...                Review the active edit diff. (P5)
+quickchat               Replace the current range in place. (P7)
+debug ...               Inspect plugin state. (P10)
+
+==============================================================================
+4. CONFIGURATION                                         *opencode9-configuration*
+
+Set |g:opencode9_config| before the plugin loads. Dictionaries are merged
+recursively with the defaults below; unknown top-level keys are preserved for
+forward compatibility.
+
+>vim
+g:opencode9_config = {
+  server_url: '',
+  server_command: [],
+  auto_start: true,
+  directory: '',
+  request_timeout_ms: 30000,
+  stream_timeout_ms: 120000,
+  connect_timeout_ms: 5000,
+  reconnect_delay_ms: 1000,
+  max_reconnect_delay_ms: 30000,
+  default_mappings: false,
+  log_level: 'warn',
+  log_file: '',
+  keymaps: {
+    help: '<Leader>oh',
+    health: '<Leader>oH',
+    prompt: '<Leader>op',
+    ask: '<Leader>oa',
+    operator: '<Leader>oo',
+    toggle: '<Leader>ot',
+  },
+  server: {
+    username: '',
+    password: '',
+    headers: {},
+  },
+  context: {
+    max_file_bytes: 262144,
+    max_buffers: 20,
+    include_diagnostics: true,
+    diagnostics_source: 'quickfix',
+  },
+  panel: {
+    height: 20,
+    width: 80,
+    position: 'botright',
+    debounce_ms: 60,
+    max_messages: 200,
+  },
+  diff: {
+    close_on_reply: true,
+    mappings: true,
+  },
+}
+<
+
+                                                           *g:opencode9_config*
+g:opencode9_config      Dictionary of user settings. It is validated at
+                        startup. Invalid types, URLs or enum values abort
+                        loading with an error naming the bad key.
+
+                                                              *opencode9-config-keys*
+server_url              Base URL of a running OpenCode server. Empty means
+                        discover a server of start one with server_command.
+server_command          String or list used to start OpenCode when a server is
+                        not already running.
+auto_start              Start or discover a server on first use.
+directory               Directory scope sent to the server. Empty means the
+                        current working directory.
+request_timeout_ms      Timeout for ordinary HTTP requests.
+stream_timeout_ms       Idle timeout for a streaming response.
+connect_timeout_ms      Timeout for discovery and health probes.
+reconnect_delay_ms      Initial SSE reconnect delay.
+max_reconnect_delay_ms  Maximum SSE reconnect delay.
+default_mappings        Install the normal-mode mappings from keymaps.
+log_level               silent, error, warn, info or debug.
+log_file                Optional file for log lines. Empty disables file logs.
+keymaps                 Mapping targets used when default_mappings is true.
+server                  username, password and extra HTTP headers.
+context                 Limits and defaults for captured editor context.
+panel                   Layout and render batching settings.
+diff                    Edit review behavior.
+
+==============================================================================
+5. EVENTS                                                         *opencode9-events*
+
+The event bridge (P1) emits User autocmds in this form:
+
+>vim
+autocmd User OpencodeEvent:session.status echo expand('<amatch>')
+<
+
+The event type follows the colon. The decoded payload is available in
+g:opencode9_event. The following names are planned:
+
+  OpencodeEvent:server.connected
+  OpencodeEvent:session.status
+  OpencodeEvent:message.updated
+  OpencodeEvent:permission.asked
+  OpencodeEvent:question.asked
+
+==============================================================================
+6. FUNCTIONS                                                 *opencode9-functions*
+
+The public function surface follows the command surface. Each action will be
+available as both an Ex command and a function so mappings and integrations do
+not need to parse command strings. Names are finalized with the phase that
+implements them.
+
+==============================================================================
+7. DEVELOPMENT                                             *opencode9-development*
+
+Run the headless smoke tests from the repository root:
+
+>sh
+./test/run.sh
+<
+
+The implementation plan and the analysis of the two Neovim clients are in
+docs/analysis/.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
