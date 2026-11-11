@@ -17,6 +17,11 @@ endif
 
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/commands.vim' as commands
+import autoload 'opencode9/server.vim' as server
+
+def g:Opencode9Shutdown()
+  server.Shutdown()
+enddef
 
 var user_config: any = get(g:, 'opencode9_config', {})
 if type(user_config) != v:t_dict
@@ -74,4 +79,5 @@ endif
 
 augroup opencode9
   autocmd!
+  autocmd VimLeavePre * call g:Opencode9Shutdown()
 augroup END
