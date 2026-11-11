@@ -1,0 +1,14 @@
+# Vim swap, backup and undo files
+*.swp
+*.swo
+*.swn
+*~
+*.un~
+
+# Test and temporary artifacts
+test/tmp/
+test/results/
+*.log
+
+# Generated help tags
+doc/tags
