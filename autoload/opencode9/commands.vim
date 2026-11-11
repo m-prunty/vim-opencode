@@ -5,6 +5,7 @@ vim9script
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/health.vim' as health
+import autoload 'opencode9/prompt.vim' as prompt
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/util.vim' as util
 
@@ -15,9 +16,9 @@ const COMMANDS: dict<dict<any>> = {
   config: {phase: 'P0', usage: 'config [path|validate]', description: 'Show or validate configuration', implemented: true},
   server: {phase: 'P1', usage: 'server [status|connect|disconnect|start|stop]', description: 'Manage the OpenCode connection', implemented: true},
   session: {phase: 'P4', usage: 'session [list|new|open|rename|delete|fork]', description: 'Manage conversations', implemented: false},
-  prompt: {phase: 'P2', usage: 'prompt [text]', description: 'Send a prompt with context placeholders', implemented: false},
-  ask: {phase: 'P2', usage: 'ask [text]', description: 'Prompt for text and send it', implemented: false},
-  operator: {phase: 'P2', usage: 'operator', description: 'Send the selected range', implemented: false},
+  prompt: {phase: 'P2', usage: 'prompt [text]', description: 'Send a prompt with context placeholders', implemented: true},
+  ask: {phase: 'P2', usage: 'ask [text]', description: 'Prompt for text and send it', implemented: true},
+  operator: {phase: 'P2', usage: 'operator', description: 'Send the selected range', implemented: true},
   context: {phase: 'P2', usage: 'context [show|clear]', description: 'Inspect or clear captured context', implemented: false},
   toggle: {phase: 'P3', usage: 'toggle', description: 'Toggle the conversation panel', implemented: false},
   open: {phase: 'P3', usage: 'open [input|output|panel]', description: 'Open a panel window', implemented: false},
@@ -31,6 +32,8 @@ const COMMANDS: dict<dict<any>> = {
 const ARG_COMPLETIONS: dict<list<string>> = {
   help: ['doc'],
   config: ['show', 'validate', 'server', 'panel', 'context', 'diff', 'keymaps', 'log_level'],
+  prompt: ['@this', '@buffer', '@buffers', '@visible', '@quickfix', '@marks', '@diagnostics'],
+  ask: ['@this', '@buffer', '@buffers', '@visible', '@quickfix', '@marks', '@diagnostics'],
   server: ['status', 'connect', 'disconnect', 'start', 'stop'],
   session: ['list', 'new', 'open', 'rename', 'delete', 'fork'],
   open: ['input', 'output', 'panel'],
@@ -61,6 +64,12 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       ShowConfig(rest)
     elseif name ==# 'server'
       Server(rest)
+    elseif name ==# 'prompt'
+      PromptCommand(rest, range)
+    elseif name ==# 'ask'
+      AskCommand(rest, range)
+    elseif name ==# 'operator'
+      OperatorCommand(rest)
     elseif has_key(COMMANDS, name)
       NotImplemented(name, COMMANDS[name].phase)
     else
@@ -162,6 +171,24 @@ def ShowConfig(rest: string)
   else
     echomsg util.JsonEncode(value)
   endif
+enddef
+
+def PromptCommand(rest: string, range: list<number>)
+  var text = trim(rest)
+  if text ==# ''
+    prompt.AskWithRange('', range)
+  else
+    prompt.Send(text, range)
+  endif
+enddef
+
+def AskCommand(rest: string, range: list<number>)
+  prompt.AskWithRange(rest, range)
+enddef
+
+def OperatorCommand(rest: string)
+  var text = trim(rest)
+  prompt.OperatorCommand(text ==# '' ? '@this' : text)
 enddef
 
 def Server(rest: string)
