@@ -19,8 +19,9 @@ V2 HTTP and SSE APIs and keeps its core independent of windows and buffers.
 The UI is added in layers: prompt and context workflows first, then a split
 panel, permissions and diff review.
 
-This help file describes the P0 walking skeleton. Commands marked with a phase
-such as (P1) are reserved and report that they are not implemented yet.
+This help file describes the current walking skeleton: configuration, command
+dispatch, server discovery, transport and SSE events. Commands marked with a
+phase such as (P2) are reserved and report that they are not implemented yet.
 
 ==============================================================================
 2. REQUIREMENTS                                             *opencode9-requirements*
@@ -53,7 +54,12 @@ health                  Run environment checks and list missing capabilities.
 config [path]           Print the merged configuration as JSON. With a dotted
                         path such as "panel.height", print only that value.
 config validate         Validate the active configuration.
-server ...              Manage discovery and the connection. (P1)
+server [action]         Manage discovery and the connection. Actions:
+                          status      Show the active URL, version and state.
+                          connect     Discover and connect, then subscribe.
+                          disconnect  Close the stream and stop reconnecting.
+                          start       Run the configured server_command.
+                          stop        Stop a server started by this plugin.
 session ...             List, create, open or delete conversations. (P4)
 prompt [text]           Send a prompt with @ placeholders. (P2)
 ask [text]              Prompt for text and send it. (P2)
@@ -66,6 +72,21 @@ permission ...          Accept or deny pending requests. (P5)
 diff ...                Review the active edit diff. (P5)
 quickchat               Replace the current range in place. (P7)
 debug ...               Inspect plugin state. (P10)
+
+                                                          *opencode9-discovery*
+Server discovery tries, in order:
+
+1. The configured |g:opencode9_config| server_url. A configured URL is
+   authoritative; the plugin never starts a different server for it.
+2. OpenCode background registrations in
+   $XDG_STATE_HOME/opencode (or ~/.local/state/opencode):
+   service.json and service-*.json, newest first. Each registration supplies
+   a URL and optional password.
+3. The configured server_command, followed by polling for up to five seconds.
+
+Every candidate is probed with GET /api/info before it becomes current. The
+SSE stream is then opened on GET /api/event. Lost streams reconnect with
+exponential backoff until :Opencode server disconnect or Vim exits.
 
 ==============================================================================
 4. CONFIGURATION                                         *opencode9-configuration*
@@ -151,20 +172,27 @@ diff                    Edit review behavior.
 ==============================================================================
 5. EVENTS                                                         *opencode9-events*
 
-The event bridge (P1) emits User autocmds in this form:
+The event bridge emits a User autocmd for every server-sent event:
 
 >vim
-autocmd User OpencodeEvent:session.status echo expand('<amatch>')
+autocmd User OpencodeEvent:session.status echo g:opencode9_event_type
 <
 
 The event type follows the colon. The decoded payload is available in
-g:opencode9_event. The following names are planned:
+g:opencode9_event, and the type is also in g:opencode9_event_type. Events are
+only emitted when a matching autocmd exists, so no message is printed for
+unhandled types.
+
+The stream currently emits the V2 types, including:
 
   OpencodeEvent:server.connected
   OpencodeEvent:session.status
   OpencodeEvent:message.updated
   OpencodeEvent:permission.asked
   OpencodeEvent:question.asked
+
+The plugin also emits a local OpencodeEvent:server.disconnected event with a
+message when the stream is lost. It fires before a reconnect attempt.
 
 ==============================================================================
 6. FUNCTIONS                                                 *opencode9-functions*
