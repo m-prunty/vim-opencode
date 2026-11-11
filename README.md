@@ -12,10 +12,11 @@ The project follows a V2-first, layered design:
 
 ## Status
 
-Early development. The current tree implements P0 and P1: plugin loading,
+Early development. The current tree implements P0-P2: plugin loading,
 configuration, command dispatch, health checks, curl-backed HTTP transport,
-SSE event dispatch, server discovery and reconnecting connections. Prompt,
-context and panel features arrive in later phases.
+SSE event dispatch, server discovery, reconnecting connections, context
+placeholders, and context-aware prompt/ask/operator workflows. The split panel,
+pickers, permissions and diff review arrive in later phases.
 
 See `docs/analysis/vim9-opencode-implementation-analysis.json` for the
 implementation plan and `doc/opencode9.txt` for user documentation.
@@ -47,6 +48,8 @@ runtime plugin/opencode9.vim
 :Opencode version
 :Opencode server connect
 :Opencode server status
+:Opencode ask @this explain
+:Opencode prompt @this fix the error
 :Opencode help
 ```
 
