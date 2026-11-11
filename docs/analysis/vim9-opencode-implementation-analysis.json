@@ -1,0 +1,1473 @@
+{
+  "report": {
+    "title": "opencode.nvim implementations compared, with a vanilla Vim 9.1 implementation plan",
+    "analyzed_at": "2026-11-11",
+    "source_reports": [
+      "sudo-tee-opencode-nvim.json",
+      "nickjvandyke-opencode-nvim.json"
+    ],
+    "repositories": [
+      {
+        "name": "sudo-tee/opencode.nvim",
+        "commit": "96c610b841788f738eefe65442d05bc9f600b857",
+        "role": "Full-featured Neovim chat client and IDE frontend",
+        "size": "182 Lua files, about 49.6k lines"
+      },
+      {
+        "name": "nickjvandyke/opencode.nvim",
+        "commit": "4851ae503585dc5142ad66a98e8952a74e1f7b3a",
+        "role": "Small prompt/context/event bridge that leans on native editor UX",
+        "size": "19 Lua files, about 2.4k lines"
+      }
+    ],
+    "audience": "An engineer planning a vanilla Vim 9.1 port that does not depend on Neovim, Lua, or optional Neovim plugins.",
+    "summary": "The two plugins represent opposite ends of the design space. sudo-tee builds a persistent, stateful chat application inside Neovim: panel tabs, a reducer over SSE, a renderer for tool/reasoning/Markdown parts, rich context de-duplication, V2 diff review with inline comments, and quick-chat inline edits. nickjvandyke deliberately stays thin: it discovers/starts a server, captures context through placeholders, submits prompts through existing input/select UI, forwards events as autocmds, reloads edited files, and reviews edits with native :diffpatch. A Vim 9.1 port should not attempt a literal translation of sudo-tee. The pragmatic path is a nick-style core (transport, context, prompt, operator, events, permissions, diff) with a sudo-tee-style layered architecture, then a panel/streaming renderer as a second phase. Vim 9.1 provides all the essential primitives (job_start, timers, JSON, text properties with virtual text, popup menus, signs, diff mode, User autocmds), but it lacks Neovim's extmarks/Treesitter/LSP ecosystem and its Lua convenience layers. The main engineering risks are SSE parsing and reconnect, asynchronous UI state, transcript rendering performance, and OS-specific clipboard/base64 handling."
+  },
+  "comparison": {
+    "positioning": [
+      {
+        "dimension": "Primary interaction model",
+        "sudo-tee": "Persistent panel with separate input/output buffers and internal session tabs.",
+        "nickjvandyke": "Transient ask/select dialogs plus the OpenCode TUI; no transcript panel."
+      },
+      {
+        "dimension": "Scope",
+        "sudo-tee": "Application-like: sessions, tabs, models, agents, tools, review, quick chat, pickers, hooks.",
+        "nickjvandyke": "Bridge-like: prompt, context, commands, events, permissions, edit diff."
+      },
+      {
+        "dimension": "Code size",
+        "sudo-tee": "Large; 182 Lua modules and about 49.6k lines.",
+        "nickjvandyke": "Small; 19 Lua modules and about 2.4k lines."
+      },
+      {
+        "dimension": "State model",
+        "sudo-tee": "Central store, per-session observations, explicit domains and subscriptions.",
+        "nickjvandyke": "Module-local state plus a connected-server singleton and autocmds."
+      },
+      {
+        "dimension": "Protocol strategy",
+        "sudo-tee": "Dual V1/V2 adapter selected by an authenticated health probe.",
+        "nickjvandyke": "V2-only main branch; V1 via the stable release line."
+      },
+      {
+        "dimension": "Rendering",
+        "sudo-tee": "Custom transcript renderer with Markdown, tool/reasoning formatters, folds and lazy rendering.",
+        "nickjvandyke": "No transcript renderer; native Vim diff for edits and native UI for menus."
+      },
+      {
+        "dimension": "Extensibility",
+        "sudo-tee": "Hooks, command lifecycle, slash registry, completion registry, tool formatter registry, prompt guard.",
+        "nickjvandyke": "Configuration contexts/prompts plus User autocmds and optional plugin integrations."
+      },
+      {
+        "dimension": "Dependency philosophy",
+        "sudo-tee": "Many optional integrations; built-in fallbacks.",
+        "nickjvandyke": "No hard plugin dependencies beyond the CLI and curl; optional snacks/blink."
+      }
+    ],
+    "feature_matrix": [
+      {
+        "feature": "Prompt input",
+        "sudo-tee": "Input buffer with multiline editing, history, mentions, slash, context bar, image paste.",
+        "nickjvandyke": "ask() via snacks.input or vim.ui.input, with highlighting and completion.",
+        "vim91_difficulty": "Low-medium",
+        "vim91_approach": "Custom input buffer for the panel; input() or popup for one-shot asks."
+      },
+      {
+        "feature": "Operator/range prompt",
+        "sudo-tee": "Range-aware quick chat and visual selection commands.",
+        "nickjvandyke": "First-class operator() using g@ and operatorfunc.",
+        "vim91_difficulty": "Low",
+        "vim91_approach": "Native operatorfunc + getpos(\"'[\")/getpos(\"']\")."
+      },
+      {
+        "feature": "Context placeholders",
+        "sudo-tee": "Context engine with delta tracking, many sources, review comments.",
+        "nickjvandyke": "Seven built-in @ placeholders with longest-match substitution.",
+        "vim91_difficulty": "Low for placeholders, medium for delta tracking",
+        "vim91_approach": "String scanner + builders; quickfix/location list for diagnostics; getregion for selections."
+      },
+      {
+        "feature": "Streaming transcript",
+        "sudo-tee": "Yes, with tools, reasoning, folds, lazy rendering and scroll anchoring.",
+        "nickjvandyke": "No; events are available but no transcript UI.",
+        "vim91_difficulty": "High",
+        "vim91_approach": "Scratch output buffer, timer-debounced line batches, text properties for highlights/virtual text, manual folds."
+      },
+      {
+        "feature": "Panel and panel tabs",
+        "sudo-tee": "Yes, internal tabs with drafts/models/context and persistence.",
+        "nickjvandyke": "No.",
+        "vim91_difficulty": "Medium-high",
+        "vim91_approach": "Split windows plus a custom tab-strip buffer/statusline; Vim tabpages are a simpler but conflicting alternative."
+      },
+      {
+        "feature": "Markdown rendering",
+        "sudo-tee": "Treesitter plus optional render-markdown/markview.",
+        "nickjvandyke": "No transcript.",
+        "vim91_difficulty": "Limited",
+        "vim91_approach": "syntax/markdown.vim, conceal, matchaddpos; no Treesitter-quality inline rendering."
+      },
+      {
+        "feature": "Session management",
+        "sudo-tee": "Picker, create/rename/delete/fork/share/compact, child sessions, timeline.",
+        "nickjvandyke": "Resolves the most recent root session only.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": "REST calls + popup_menu picker; timeline from observed messages."
+      },
+      {
+        "feature": "Models/agents/variants",
+        "sudo-tee": "Rich pickers, favorites, recent, variants, agent cycling.",
+        "nickjvandyke": "No model/agent UI.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": "Fetch catalogs and use popup_menu; persist favorites in a small JSON file."
+      },
+      {
+        "feature": "Permissions",
+        "sudo-tee": "In-output choices, commands, questions, optimistic state.",
+        "nickjvandyke": "Once/Always/Reject select; edit preview delegates to diff.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": "popup_menu or a custom dialog buffer; POST reply; handle duplicates."
+      },
+      {
+        "feature": "Edit review",
+        "sudo-tee": "V2 session diff with file tree, side-by-side/unified, inline comments, reverts.",
+        "nickjvandyke": "Single-file :diffpatch in a tab with da/dr/dp/do/q.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": ":diffpatch + :diffget/:diffput + ]c/[c are native. Inline comments need signs/text properties."
+      },
+      {
+        "feature": "Quick chat",
+        "sudo-tee": "Yes, temporary session and inline replacement.",
+        "nickjvandyke": "No.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": "Capture range, temp session, observe text, replace lines; spinner via virtual text/timer."
+      },
+      {
+        "feature": "SSE events as autocmds",
+        "sudo-tee": "Yes, plus internal observation and hooks.",
+        "nickjvandyke": "Yes, OpencodeEvent:* with event data.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": "job_start curl SSE, frame parser, g: event dict, doautocmd User."
+      },
+      {
+        "feature": "Buffer reload",
+        "sudo-tee": "Yes, via file events.",
+        "nickjvandyke": "Yes, :checktime and autoread.",
+        "vim91_difficulty": "Low",
+        "vim91_approach": "Same."
+      },
+      {
+        "feature": "Completion",
+        "sudo-tee": "Multi-source registry plus in-process LSP.",
+        "nickjvandyke": "customlist function and in-process LSP for snacks.input.",
+        "vim91_difficulty": "Medium",
+        "vim91_approach": "complete()/completefunc/omnifunc and popup_menu; no LSP."
+      },
+      {
+        "feature": "Statusline/health",
+        "sudo-tee": "Statusline, tmux, checkhealth, debug views.",
+        "nickjvandyke": "Statusline function and checkhealth.",
+        "vim91_difficulty": "Low",
+        "vim91_approach": "%{Func()} statusline; :Opencode health instead of :checkhealth."
+      },
+      {
+        "feature": "Image attachments",
+        "sudo-tee": "Clipboard image paste.",
+        "nickjvandyke": "No.",
+        "vim91_difficulty": "Limited",
+        "vim91_approach": "Shell out to wl-paste/xclip/pngpaste/PowerShell; implement base64 or use an external encoder."
+      },
+      {
+        "feature": "V1/V2 support",
+        "sudo-tee": "Dual adapter.",
+        "nickjvandyke": "Version-line split.",
+        "vim91_difficulty": "Medium-high",
+        "vim91_approach": "Start V2-only behind an adapter interface; add V1 after the V2 path is stable."
+      }
+    ],
+    "architecture_dimensions": [
+      {
+        "dimension": "Transport",
+        "sudo-tee": "curl jobs, shared transport, request tracking, SSE stream abstraction.",
+        "nickjvandyke": "curl jobs directly in Server:request and Server:connect.",
+        "vim91_implication": "Use curl via job_start for both; extract a transport module early."
+      },
+      {
+        "dimension": "Event handling",
+        "sudo-tee": "Protocol observation/reducer -> state store -> renderer.",
+        "nickjvandyke": "Direct SSE -> User autocmd -> feature autocmds.",
+        "vim91_implication": "Start with direct dispatch; add a reducer when the panel/transcript arrives."
+      },
+      {
+        "dimension": "Async model",
+        "sudo-tee": "Promise library with async/await helpers, uv timers.",
+        "nickjvandyke": "Small fork of promise.nvim, uv timers.",
+        "vim91_implication": "No coroutines/promises; use callbacks plus a request-id registry and timer timeouts."
+      },
+      {
+        "dimension": "UI coupling",
+        "sudo-tee": "High: custom windows, extmarks, folds, pickers, completion.",
+        "nickjvandyke": "Low: vim.ui.input/select and native diff.",
+        "vim91_implication": "Keep UI behind a module boundary so a minimal bridge and a panel can share the core."
+      },
+      {
+        "dimension": "Error handling",
+        "sudo-tee": "Normalized dispatch errors and lifecycle hooks.",
+        "nickjvandyke": "Promise catch + vim.notify at public API boundaries.",
+        "vim91_implication": "Use a small result/error convention and echoerr/echomsg; never let a callback fail silently."
+      }
+    ],
+    "what_to_reuse_from_sudo_tee": [
+      "Layered separation: transport -> protocol adapter -> observation/state -> UI.",
+      "Command intent model where Ex commands, keymaps and API calls share handlers.",
+      "Context de-duplication and a context bar that shows what will be sent.",
+      "Session diff review flow and inline-comment-to-prompt loop.",
+      "Quick-chat temporary-session pattern.",
+      "Tool formatter registry concept (with a smaller built-in set).",
+      "Project-scoped panel-tab persistence model.",
+      "Server lifecycle ideas: configured URL is authoritative; native service first; legacy spawn fallback."
+    ],
+    "what_to_reuse_from_nickjvandyke": [
+      "Placeholder context syntax and longest-match-first substitution.",
+      "Operator implementation with g@ for ranges and dot-repeat.",
+      "Minimal server discovery via service.json + configured URL + start callback.",
+      "SSE heartbeat deadline and reconnect behavior.",
+      "Native :diffpatch edit review with da/dr/dp/do/q.",
+      "Promise-free core that is easy to reason about.",
+      "User autocmd event surface for user automation.",
+      "Optional integration policy: bridge glue in docs, core enhancements in the plugin."
+    ],
+    "what_not_to_copy_directly": [
+      "Neovim extmarks, Treesitter, vim.diagnostic, vim.ui.select, vim.lsp, vim.uv and vim.schedule assumptions.",
+      "The full sudo-tee feature surface in the first release; it multiplies UI and protocol risk.",
+      "A Promise/async-await port. Vim 9.1 has no coroutines; callback state machines are clearer.",
+      "A dependency on snacks/telescope/blink. The Vim9 port should expose native hooks instead.",
+      "Render-markdown-style inline rendering in phase one.",
+      "A literal per-token full transcript rebuild; it will flicker and lose folds."
+    ]
+  },
+  "vim91_environment": {
+    "probe": {
+      "editor": "VIM - Vi IMproved 9.1 (2024 Jan 02, compiled Jun 30 2026 17:36:30)",
+      "packaging": "Debian; included patches 1-948, 950-967",
+      "features": [
+        "vim9script=1",
+        "channel=1",
+        "job=1",
+        "popupwin=1",
+        "timers=1",
+        "terminal=1"
+      ]
+    },
+    "verified_capabilities": [
+      {
+        "capability": "Vim9 script, classes and autoload imports",
+        "probe": "A vim9script file imported autoload/oc9/util.vim, instantiated an exported class, and called an exported def.",
+        "result": "Passed in a headless Vim 9.1 smoke test.",
+        "use": "Module layout, connection/session classes, typed state objects."
+      },
+      {
+        "capability": "job_start with curl streaming",
+        "probe": "job_start(['curl','-sS','-N',...], {out_cb, err_cb, exit_cb}) against a local SSE server.",
+        "result": "Passed; callbacks received SSE lines and exit status 0. Vim9 callback functions needed global g: names and Vim9 whitespace rules.",
+        "use": "HTTP requests and the SSE subscription."
+      },
+      {
+        "capability": "Text properties with virtual text",
+        "probe": "prop_type_add('OcVirtual', {text: ..., text_align: 'after', highlight: ...}) + prop_add(line, col, ...).",
+        "result": "Passed with col >= 1. col 0 with text_align='after' raised E964 in this build; col 1 worked. prop_list reported the property.",
+        "use": "Spinners, inline annotations, review-comment markers, highlights."
+      },
+      {
+        "capability": "User autocmds with a global event handoff",
+        "probe": "Set g:oc9_event, doautocmd User OpencodeEvent:session.status, and read the global in the autocmd.",
+        "result": "Passed.",
+        "use": "OpencodeEvent:<type> compatibility surface without Neovim autocmd data."
+      },
+      {
+        "capability": "Documented :diffpatch",
+        "probe": "exists(':diffpatch') returned 2 in this build; :help :diffpatch resolves to diff.txt.",
+        "result": "Available.",
+        "use": "Edit review by applying a server-provided patch to a temp file."
+      }
+    ],
+    "function_probe": {
+      "available": [
+        "job_start",
+        "ch_open",
+        "ch_readraw",
+        "ch_sendraw",
+        "json_encode",
+        "json_decode",
+        "popup_create",
+        "prop_add",
+        "prop_add_list",
+        "listener_add",
+        "timer_start",
+        "readblob",
+        "blob2list",
+        "term_start",
+        "win_execute",
+        "matchaddpos",
+        "sign_place",
+        "getmarklist",
+        "virtcol",
+        "getregion",
+        "getreginfo",
+        "systemlist"
+      ],
+      "unavailable": [
+        "sockconnect",
+        "base64_encode",
+        "base64_decode"
+      ],
+      "notes": [
+        "ch_open supports TCP/Unix-domain sockets in raw/nl/json modes but has no TLS; curl is the practical HTTPS path.",
+        "There is no Neovim vim.api, vim.uv, vim.diagnostic, vim.lsp, vim.ui.select, vim.schedule or extmark API.",
+        "There is no built-in Treesitter, LSP client, checkhealth, or Lua plugin ecosystem."
+      ]
+    },
+    "missing_or_changed": [
+      {
+        "neovim": "vim.api.nvim_buf_set_extmark",
+        "vim91": "prop_type_add/prop_add/prop_add_list (highlight + virtual text)",
+        "impact": "Highlights and virtual text are possible; extmark metadata/API differs."
+      },
+      {
+        "neovim": "vim.api.nvim_buf_set_folds",
+        "vim91": "manual folds (:foldcreate, foldmethod=manual), foldtext, foldlevel",
+        "impact": "Possible, but fold lifecycle must be managed manually."
+      },
+      {
+        "neovim": "vim.diagnostic.get",
+        "vim91": "getqflist()/getloclist() or optional external lint/LSP plugin",
+        "impact": "Diagnostics context is limited to quickfix/location data unless the user runs an LSP plugin."
+      },
+      {
+        "neovim": "vim.ui.select / vim.ui.input",
+        "vim91": "popup_menu(), inputlist(), input(), complete()",
+        "impact": "All dialogs are custom; no promise wrappers."
+      },
+      {
+        "neovim": "vim.lsp.start / in-process LSP",
+        "vim91": "complete()/completefunc/omnifunc",
+        "impact": "Completion is simpler, not LSP-compatible."
+      },
+      {
+        "neovim": "vim.uv timers / vim.schedule",
+        "vim91": "timer_start() with repeat, job callbacks, :sleep",
+        "impact": "Debounce/retry/backoff must be explicit."
+      },
+      {
+        "neovim": "nvim_exec_autocmds data",
+        "vim91": "g: event dict + doautocmd User",
+        "impact": "Consumers read a well-known global; document the contract."
+      },
+      {
+        "neovim": "stdpath()",
+        "vim91": "$XDG_STATE_HOME/$XDG_DATA_HOME or ~/.local/state, ~/.local/share",
+        "impact": "Implement path helpers with Windows/macOS fallbacks."
+      },
+      {
+        "neovim": "checkhealth",
+        "vim91": "custom :Opencode health command",
+        "impact": "Lower discoverability; document checks."
+      },
+      {
+        "neovim": "base64/Lua image handling",
+        "vim91": "shell out to platform tools; custom base64 if required",
+        "impact": "Image paste is the least portable feature."
+      }
+    ],
+    "design_implications": [
+      "Use a normal input buffer for the panel. input() blocks the event loop, so streaming would stop while composing.",
+      "Use a scratch output buffer with text properties. Batch writes and debounce with timer_start.",
+      "Keep a central callback registry rather than promises. Represent requests as ids with success/error handlers and a timeout timer.",
+      "Prefer curl for all HTTP, including SSE. Raw ch_open is viable for plain TCP but TLS is the blocker.",
+      "Treat the SSE parser as a small state machine: accumulate chunks, split frames on blank lines, handle ':' comments as heartbeats.",
+      "Use popup_menu/popup_create for pickers and permissions; use complete()/completefunc for input completion.",
+      "Use native diff mode and :diffpatch for review. Do not build a custom diff renderer in phase one.",
+      "Expose a stable OpencodeEvent:<type> autocmd surface with a documented g: event dict."
+    ]
+  },
+  "recommended_target": {
+    "name": "opencode9.vim",
+    "strategy": "A Vim9-native, V2-first, layered client. Start with a small bridge core (transport, discovery, context, prompt, operator, events, permissions, diff), then add a split-panel transcript and session tabs.",
+    "why": [
+      "It captures the highest-value workflows early: prompt with context, run commands, see events, approve permissions, review edits.",
+      "It keeps the first release small enough to test on Vim 9.1.",
+      "It preserves a clean path to sudo-tee-like features without committing to a full application port.",
+      "It avoids Neovim-only abstractions from day one."
+    ],
+    "scope": {
+      "in_scope_v1": [
+        "Server discovery/start/connect with basic auth and directory scoping.",
+        "HTTP request layer and SSE subscription with heartbeat/reconnect.",
+        "Context placeholders: @this, @buffer, @buffers, @visible, @quickfix, @marks, @diagnostics (quickfix-backed).",
+        "Prompt/ask/operator APIs.",
+        "Select menu for prompts and server commands.",
+        "Permission dialogs and single-file edit diff review.",
+        "Buffer reload on file events.",
+        "OpencodeEvent:<type> User autocmds.",
+        "Statusline function and :Opencode health.",
+        "Optional split panel with streaming output (phase 2)."
+      ],
+      "deferred": [
+        "Internal panel tabs and project-group persistence.",
+        "Inline review comments and session-diff file trees.",
+        "Quick chat inline replacement.",
+        "Image attachments.",
+        "Tool formatter registry and rich reasoning/tool folds.",
+        "Treesitter-quality Markdown.",
+        "Full V1 support.",
+        "Model/agent favorites and variants."
+      ],
+      "explicit_non_goals": [
+        "Reimplement Neovim's Lua plugin ecosystem.",
+        "Provide an LSP server for completion.",
+        "Guarantee pixel-identical rendering to sudo-tee.",
+        "Drive the OpenCode TUI as an undocumented control surface."
+      ]
+    },
+    "architecture": {
+      "principles": [
+        "Core knows nothing about windows and buffers.",
+        "One transport abstraction for requests and streams.",
+        "One protocol adapter interface; V2 implementation first.",
+        "One event reducer that produces UI-agnostic session state.",
+        "UI is a consumer of state and an emitter of intents.",
+        "Every public action is available as an Ex command and a function."
+      ],
+      "module_layout": [
+        {
+          "path": "plugin/opencode9.vim",
+          "purpose": "Load guard, :Opencode command, default mappings, augroup, highlight setup."
+        },
+        {
+          "path": "autoload/opencode9/config.vim",
+          "purpose": "Defaults, deep merge, validation, keymap tables."
+        },
+        {
+          "path": "autoload/opencode9/util.vim",
+          "purpose": "JSON, paths, URL encoding, temp files, logging, version compare, base64 fallback."
+        },
+        {
+          "path": "autoload/opencode9/transport.vim",
+          "purpose": "curl job argv, request ids, response temp files, SSE stream, chunk parser, timeouts."
+        },
+        {
+          "path": "autoload/opencode9/discovery.vim",
+          "purpose": "Configured URL, service.json registrations, opencode CLI service commands, start callback, polling."
+        },
+        {
+          "path": "autoload/opencode9/server.vim",
+          "purpose": "Connection class: URL, auth, protocol, heartbeat, request/stream, shutdown."
+        },
+        {
+          "path": "autoload/opencode9/protocol/v2.vim",
+          "purpose": "V2 endpoint operations and event normalization."
+        },
+        {
+          "path": "autoload/opencode9/protocol/v1.vim",
+          "purpose": "Optional V1 adapter behind the same interface."
+        },
+        {
+          "path": "autoload/opencode9/state.vim",
+          "purpose": "Global state, per-session records, message/part maps, active session, subscriptions."
+        },
+        {
+          "path": "autoload/opencode9/events.vim",
+          "purpose": "SSE event dispatch, reducer hooks, User autocmd emission, status updates."
+        },
+        {
+          "path": "autoload/opencode9/context.vim",
+          "purpose": "Capture editor state; builders; placeholder scanner; path formatting; attachments."
+        },
+        {
+          "path": "autoload/opencode9/prompt.vim",
+          "purpose": "ask(), prompt(), operator(), submit, session resolution, context cleanup."
+        },
+        {
+          "path": "autoload/opencode9/commands.vim",
+          "purpose": "Command table, parsing, dispatch, completion, lifecycle hooks."
+        },
+        {
+          "path": "autoload/opencode9/ui/panel.vim",
+          "purpose": "Input/output windows, focus, toggle, zoom, tab strip."
+        },
+        {
+          "path": "autoload/opencode9/ui/render.vim",
+          "purpose": "Transcript model -> buffer lines, text properties, folds, debounce, scroll anchoring."
+        },
+        {
+          "path": "autoload/opencode9/ui/picker.vim",
+          "purpose": "popup_menu-based single/multi select, filtering, previews."
+        },
+        {
+          "path": "autoload/opencode9/ui/dialog.vim",
+          "purpose": "Input, confirmation, permission choices, question answers."
+        },
+        {
+          "path": "autoload/opencode9/ui/diff.vim",
+          "purpose": ":diffpatch review, per-hunk mappings, accept/reject, comments/signs."
+        },
+        {
+          "path": "autoload/opencode9/health.vim",
+          "purpose": ":Opencode health checks."
+        },
+        {
+          "path": "ftplugin/opencode9_input.vim",
+          "purpose": "Input buffer mappings, completion, submit."
+        },
+        {
+          "path": "ftplugin/opencode9_output.vim",
+          "purpose": "Read-only transcript mappings, navigation, folds."
+        },
+        {
+          "path": "syntax/opencode9_output.vim",
+          "purpose": "Markdown-ish syntax, code fences, tool headings."
+        },
+        {
+          "path": "syntax/opencode9_diff.vim",
+          "purpose": "Diff/review annotations if needed."
+        },
+        {
+          "path": "doc/opencode9.txt",
+          "purpose": "Help, configuration, events, API."
+        }
+      ],
+      "data_model": [
+        {
+          "object": "Connection",
+          "fields": [
+            "url",
+            "username/password",
+            "protocol (v1/v2)",
+            "version",
+            "request table keyed by id",
+            "sse job/channel",
+            "heartbeat timer",
+            "shutdown flag"
+          ]
+        },
+        {
+          "object": "Session",
+          "fields": [
+            "id",
+            "title",
+            "directory",
+            "parent_id",
+            "model/agent/variant",
+            "message_order",
+            "messages by id",
+            "parts by id",
+            "pending permissions/questions",
+            "status"
+          ]
+        },
+        {
+          "object": "PanelTab",
+          "fields": [
+            "id",
+            "session_id",
+            "directory",
+            "draft",
+            "context snapshot",
+            "scroll anchor"
+          ]
+        },
+        {
+          "object": "Message/Part",
+          "fields": [
+            "id",
+            "role/kind",
+            "text/tool/reasoning/patch",
+            "state",
+            "input/result/error",
+            "time",
+            "render metadata"
+          ]
+        },
+        {
+          "object": "Context",
+          "fields": [
+            "buf/win/cursor",
+            "range and kind",
+            "mentioned files",
+            "selections",
+            "diagnostics",
+            "review comments",
+            "last-sent hashes"
+          ]
+        }
+      ],
+      "transport": {
+        "requests": "job_start(['curl', '-sS', '--fail-with-body', '-o', bodyfile, '-w', '%{http_code}', '-D', headerfile, ...]) with a timeout timer; on exit read files and decode JSON.",
+        "stream": "job_start(['curl', '-sS', '-N', ...]) with out_cb; accumulate chunks and parse SSE frames.",
+        "auth": "Basic auth via --user; headers via -H; x-opencode-directory for V2.",
+        "why_not_ch_open": "ch_open supports TCP but not TLS; curl handles HTTPS, proxies and redirects.",
+        "backpressure": "Queue requests; limit concurrent curls; cancel by job_stop on timeout/shutdown.",
+        "error_model": "Return a dict {ok, status, body, error}; callbacks get the same shape."
+      },
+      "async": {
+        "model": "Callback registry keyed by request id plus timer-based timeouts; no promises or coroutines.",
+        "patterns": [
+          "request(id, spec, OnSuccess, OnError) registers handlers and starts curl.",
+          "timer_start(ms, TimeoutFunc, {repeat: 0}) enforces deadlines.",
+          "SSE heartbeat timer resets on every event/comment; expiry triggers reconnect with capped backoff.",
+          "UI updates are deferred with timer_start(0, ...) when called from job callbacks.",
+          "Cancellation marks the request id dead and stops the job; late callbacks are ignored."
+        ]
+      },
+      "ui": {
+        "panel": "Vertical split: output on top, input at bottom. Scratch buffers with buftype=nofile, bufhidden=hide, noswapfile. Input is a normal editable buffer; output is nomodifiable outside render batches.",
+        "input": "Buffer-local mappings: <CR> submit (normal), <S-CR> submit (insert if terminal supports), <C-c> cancel, <Tab> pane switch, @/~/ /# gestures, Up/Down history. Completion via complete() from TextChanged or <C-x>.",
+        "output": "Line-oriented text with prop_add for highlights and virtual text, sign_place for comments, manual folds for tools/reasoning. Timer-debounced batch updates.",
+        "pickers": "popup_menu() for short lists; a custom popup buffer for filtering/preview/multi-select. If a fuzzy finder is available, an optional adapter can call it.",
+        "dialogs": "popup_create() for permission/question dialogs; inputlist() for simple choices; input() for one-shot text.",
+        "markdown": "syntax/markdown.vim plus conceal; custom syntax for tool headers, code fences and diffs. No Treesitter.",
+        "statusline": "%{opencode9#Statusline()} with icon and server host.",
+        "notifications": "echomsg/echoerr plus optional popup_notification; avoid blocking dialogs during streaming."
+      },
+      "protocol": {
+        "phase_1": "V2 only: GET /api/info, GET/POST/DELETE /api/session*, GET /api/event, commands, permissions, diff.",
+        "phase_2": "Add a V1 adapter with /global/health, /session*, /global/event and legacy permission/question paths.",
+        "adapter_interface": [
+          "Health()",
+          "ListSessions(opts)",
+          "Create/Rename/Delete/Fork/Revert",
+          "ListMessages()",
+          "SubmitPrompt()",
+          "RunCommand()",
+          "ListCommands/Models/Agents/Skills",
+          "ReplyPermission()/ReplyQuestion()",
+          "DiffSession()",
+          "SubscribeEvents(on_event, on_disconnect)"
+        ],
+        "normalization": "Adapters return shared session/message/part/event shapes; UI never sees raw V1/V2 differences."
+      },
+      "persistence": {
+        "state_dir": "$XDG_STATE_HOME/opencode9 or ~/.local/state/opencode9",
+        "data_dir": "$XDG_DATA_HOME/opencode9 or ~/.local/share/opencode9",
+        "files": [
+          "history.jsonl (prompt history, global)",
+          "panel.json (tabs/session/directory/draft metadata per project)",
+          "favorites.json (models/agents)"
+        ],
+        "validation": "Skip missing directories and deleted sessions on restore; never fail startup because a snapshot is stale."
+      }
+    }
+  },
+  "implementation_pathways": [
+    {
+      "id": "P0",
+      "name": "Skeleton, configuration and command surface",
+      "phase": "Foundation",
+      "effort": "1-2 person-days",
+      "goal": "A loadable Vim9 plugin with config, commands, completion, logging and a test harness.",
+      "steps": [
+        "Create plugin/opencode9.vim with a load guard, :Opencode command, -nargs/-range/-complete=custom, and default mappings behind a flag.",
+        "Create config.vim: defaults dict, deep-merge, validation, keymap tables, XDG path helpers.",
+        "Create util.vim: JSON wrappers, URL encoding, temp files, logging, version compare, shell escaping.",
+        "Create commands.vim: intent table, parse positional/subcommands/options, dispatch, error formatting.",
+        "Create health.vim and a headless smoke test script.",
+        "Add doc/opencode9.txt skeleton and syntax/ftplugin placeholders."
+      ],
+      "files": [
+        "plugin/opencode9.vim",
+        "autoload/opencode9/config.vim",
+        "autoload/opencode9/util.vim",
+        "autoload/opencode9/commands.vim",
+        "autoload/opencode9/health.vim",
+        "doc/opencode9.txt"
+      ],
+      "apis": [
+        "vim9script",
+        "def/export def/class",
+        "json_encode/json_decode",
+        "getcompletion()",
+        ":command -complete=custom",
+        "timer_start"
+      ],
+      "acceptance": [
+        ":Opencode help works.",
+        "Config merge and validation errors are clear.",
+        "Command completion works for subcommands.",
+        "Headless Vim sources the plugin without errors."
+      ],
+      "risks": [
+        "Vim9 whitespace and type rules are stricter than legacy Vimscript.",
+        "Command completion can be slow if it calls the network; cache catalogs."
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Transport, discovery and connection",
+      "phase": "Foundation",
+      "effort": "3-5 person-days",
+      "goal": "Find or start a server, probe the protocol, make authenticated requests and subscribe to SSE.",
+      "steps": [
+        "Implement curl argv building for GET/POST/PATCH/DELETE, headers, auth and JSON body.",
+        "Implement request execution with job_start and temp files; add timeouts and cancellation.",
+        "Implement discovery: configured URL -> service.json/service-<channel>.json newest first -> server.start callback -> poll for five seconds.",
+        "Implement V2 probe GET /api/info and store version/protocol.",
+        "Implement SSE subscription GET /api/event with chunk accumulation, frame parsing, heartbeats and reconnect/backoff.",
+        "Track requests and the SSE job on the connection; clean up on VimLeavePre.",
+        "Add :Opencode server status/connect/disconnect and health checks."
+      ],
+      "files": [
+        "autoload/opencode9/transport.vim",
+        "autoload/opencode9/discovery.vim",
+        "autoload/opencode9/server.vim",
+        "autoload/opencode9/protocol/v2.vim",
+        "autoload/opencode9/protocol/v1.vim (stub)"
+      ],
+      "apis": [
+        "job_start/out_cb/err_cb/exit_cb",
+        "job_stop",
+        "timer_start/timer_stop",
+        "readfile/writefile",
+        "json_decode",
+        "fnamemodify/expand",
+        "executable()"
+      ],
+      "acceptance": [
+        "Connects to a running V2 service and reports its version.",
+        "Starts a server via a configured start callback and reconnects.",
+        "Receives server.connected and session.status events.",
+        "Heartbeat expiry triggers a visible reconnect attempt.",
+        "No orphan curl jobs after :qa."
+      ],
+      "risks": [
+        "SSE chunks can split UTF-8 and JSON; parse on frame boundaries, not arbitrary chunk boundaries.",
+        "curl stderr/exit codes need careful mapping to useful errors.",
+        "Vim9 job callback functions must be reachable (global g: functions or string names); script-local def callbacks need wrappers."
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Context, prompt, ask and operator",
+      "phase": "First usable release",
+      "effort": "4-6 person-days",
+      "goal": "A nickjvandyke-parity workflow: context-aware prompt, ask and operator.",
+      "steps": [
+        "Implement Context capture: buffer/win/cursor, visual range/kind, selection text, scratch-buffer fallback.",
+        "Implement placeholder scanner with longest-match-first and input/output segment lists.",
+        "Implement built-ins: @this, @buffer, @buffers, @visible, @quickfix, @marks, @diagnostics (quickfix/location list).",
+        "Implement path:line:column formatting relative to cwd; normalize reversed selections.",
+        "Implement session resolution: most recent non-archived root session for cwd.",
+        "Implement prompt submission and trailing ... behavior.",
+        "Implement ask via input() with customlist completion, or a small popup input.",
+        "Implement operator() with operatorfunc and g@.",
+        "Add :Opencode ask/prompt/operator and visual mappings."
+      ],
+      "files": [
+        "autoload/opencode9/context.vim",
+        "autoload/opencode9/prompt.vim",
+        "autoload/opencode9/ui/dialog.vim",
+        "autoload/opencode9/protocol/v2.vim",
+        "autoload/opencode9/commands.vim"
+      ],
+      "apis": [
+        "getpos(\"'<\")/getpos(\"'>\")",
+        "getregion()/getreginfo()",
+        "mode()",
+        "getqflist()/getloclist()",
+        "getmarklist()",
+        "input()/inputlist()",
+        "complete()",
+        "operatorfunc/g@"
+      ],
+      "acceptance": [
+        "@this sends the selection or cursor location.",
+        "A visual selection is highlighted and can be resumed after cancel/error.",
+        "Trailing ... opens ask.",
+        "Dot-repeat works for the operator mapping.",
+        "Prompt errors leave the editor state intact."
+      ],
+      "risks": [
+        "Diagnostics semantics differ without vim.diagnostic; document the quickfix-backed behavior.",
+        "input() blocks the event loop; do not rely on streaming during ask.",
+        "Path encoding and Windows drive letters need tests."
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Split panel and streaming renderer",
+      "phase": "Daily-driver release",
+      "effort": "6-10 person-days",
+      "goal": "A persistent panel that streams a readable transcript without blocking input.",
+      "steps": [
+        "Create output/input scratch buffers and a split layout with focus/toggle/zoom.",
+        "Implement a session transcript model: ordered messages, parts, tool/reasoning/text roles.",
+        "Implement a formatter that emits line arrays plus highlight ranges and fold ranges.",
+        "Batch-write lines on a timer (for example 40-80 ms); avoid per-token writes.",
+        "Use prop_add/prop_add_list for highlights and virtual text; use manual folds for tools/reasoning.",
+        "Keep the bottom anchored when the user is at the bottom; preserve the top otherwise.",
+        "Add navigation: next/prev message, next/prev user message, jump to file at cursor.",
+        "Add a minimal input buffer submit flow and prompt history.",
+        "Add :Opencode toggle/open input/open output/close."
+      ],
+      "files": [
+        "autoload/opencode9/ui/panel.vim",
+        "autoload/opencode9/ui/render.vim",
+        "autoload/opencode9/state.vim",
+        "autoload/opencode9/events.vim",
+        "ftplugin/opencode9_input.vim",
+        "ftplugin/opencode9_output.vim",
+        "syntax/opencode9_output.vim"
+      ],
+      "apis": [
+        "bufadd/bufload/setbufvar",
+        "win_execute",
+        "appendbufline/setbufline/deletebufline",
+        "prop_type_add/prop_add/prop_add_list",
+        "foldcreate/foldclosed/foldopen",
+        "timer_start",
+        "winrestview/winsaveview"
+      ],
+      "acceptance": [
+        "Streaming text appears smoothly without flicker.",
+        "The user can type in the input buffer while output streams.",
+        "Folds for tool output can be opened/closed.",
+        "Scrolling up is not yanked back to the bottom by new tokens.",
+        "Closing/reopening the panel preserves the draft and scroll position."
+      ],
+      "risks": [
+        "Text property/virtual text behavior differs from extmarks; test zero-width and end-of-line cases.",
+        "Manual fold management can conflict with syntax folding; isolate with foldmethod=manual.",
+        "Frequent buffer writes are expensive; batch and skip work when the panel is hidden."
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Sessions, models, agents and commands",
+      "phase": "Daily-driver release",
+      "effort": "5-8 person-days",
+      "goal": "Manage more than the most recent session and select models/agents/commands.",
+      "steps": [
+        "Implement list/create/rename/delete/fork/revert operations in the V2 adapter.",
+        "Add a popup_menu session picker with project/global scope and a preview line.",
+        "Add model/provider/agent list fetch and selection; persist favorites/recent choices.",
+        "Add server command list, argument prompt and execution.",
+        "Add slash-like command navigation in the input (a popup list, no literal / DSL required).",
+        "Add basic child/parent session navigation if the server exposes it."
+      ],
+      "files": [
+        "autoload/opencode9/protocol/v2.vim",
+        "autoload/opencode9/ui/picker.vim",
+        "autoload/opencode9/state.vim",
+        "autoload/opencode9/commands.vim"
+      ],
+      "apis": [
+        "GET /api/session",
+        "POST /api/session",
+        "PATCH/DELETE /api/session/{id}",
+        "POST /api/session/{id}/fork",
+        "GET /api/command",
+        "POST /api/session/{id}/command",
+        "GET /api/model /api/provider /api/agent",
+        "popup_menu"
+      ],
+      "acceptance": [
+        "The session picker lists and opens sessions for the current directory.",
+        "A chosen model/agent is applied to the next prompt.",
+        "A server command runs with optional arguments.",
+        "Favorites/recent choices survive a restart."
+      ],
+      "risks": [
+        "The V2 catalog shapes can change; ignore unknown fields and fail softly.",
+        "Session scoping by directory is subtle; always send both the directory query and header.",
+        "Popup previews are limited; do not block the release on rich previews."
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Permissions and edit diff review",
+      "phase": "Daily-driver release",
+      "effort": "4-6 person-days",
+      "goal": "Safely approve/reject actions and review proposed edits.",
+      "steps": [
+        "Listen for permission.asked/question.asked and create pending records.",
+        "Implement Once/Always/Reject dialogs with popup_menu; support multiple pending requests by index.",
+        "Reply via /api/session/{id}/permission/{requestID}/reply and clear optimistic state.",
+        "For edit requests with a single file and patch, write a temp patch, tabnew the target, and :diffpatch.",
+        "Install buffer-local da/dr/dp/do/q mappings; accept/reject the whole request; preserve native per-hunk behavior.",
+        "Close the diff tab on permission.replied.",
+        "Fall back to the generic permission dialog for multi-file or patch-less edits.",
+        "Add :Opencode permission accept/accept_all/deny."
+      ],
+      "files": [
+        "autoload/opencode9/events.vim",
+        "autoload/opencode9/ui/dialog.vim",
+        "autoload/opencode9/ui/diff.vim",
+        "autoload/opencode9/protocol/v2.vim"
+      ],
+      "apis": [
+        "popup_menu/popup_create",
+        "tabnew",
+        ":diffpatch",
+        ":diffget/:diffput",
+        "]c/[c",
+        "bufadd/bufload",
+        "sign_place"
+      ],
+      "acceptance": [
+        "A permission request can be approved or rejected without leaving Vim.",
+        "A single-file edit opens a diff and da/dr reply correctly.",
+        "dp/do still perform native hunk operations.",
+        "The diff tab closes when the request is resolved elsewhere."
+      ],
+      "risks": [
+        "Accepting a patch changes the working tree; make the semantics explicit and keep an undo path.",
+        "Multi-file edits cannot be previewed safely with this approach; do not silently approve.",
+        "The permission metadata shape is version-specific; fail closed and show the generic dialog."
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "Rich context engine and review feedback loop",
+      "phase": "Advanced",
+      "effort": "5-8 person-days",
+      "goal": "Close the gap to sudo-tee's context and review workflow.",
+      "steps": [
+        "Add current-file, cursor-window, whole-buffer and git-diff context sources.",
+        "Add per-session sent-context hashes and re-send only changed items.",
+        "Add review comments with file/line/range and a stable reference id.",
+        "Attach review comments to prompts and render them in a context bar/statusline.",
+        "Add a session-diff browser using GET /api/session/{id}/diff and the native diff view.",
+        "Add inline comment creation with signs/virtual text and next/prev comment navigation.",
+        "Add a context item toggle UI (#-like picker) and clear actions."
+      ],
+      "files": [
+        "autoload/opencode9/context.vim",
+        "autoload/opencode9/state.vim",
+        "autoload/opencode9/ui/diff.vim",
+        "autoload/opencode9/ui/picker.vim",
+        "autoload/opencode9/prompt.vim"
+      ],
+      "apis": [
+        "git diff --cached via systemlist",
+        "getqflist/getloclist",
+        "getregion",
+        "sign_place",
+        "prop_add",
+        "GET /api/session/{id}/diff"
+      ],
+      "acceptance": [
+        "Unchanged context is not re-sent.",
+        "Comments on a review diff appear in the next prompt.",
+        "A stale comment includes a warning and current code context.",
+        "The context bar accurately reflects what will be sent."
+      ],
+      "risks": [
+        "Context heuristics can surprise users; make them visible and easy to disable.",
+        "Review comments anchored to snapshots can drift after local edits.",
+        "Git operations can be slow in large repos; run asynchronously and cache."
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "Quick chat and inline edits",
+      "phase": "Advanced",
+      "effort": "5-8 person-days",
+      "goal": "Make a small edit in place without opening the panel.",
+      "steps": [
+        "Capture the cursor line +/-N or the visual range.",
+        "Create a temporary V2 session with replacement-oriented instructions.",
+        "Submit the range and optional context tags (#buffer, #file, #git_diff, #errors, #warnings).",
+        "Observe assistant text; accumulate until idle.",
+        "Replace only the target lines and rely on :undo for recovery.",
+        "Show a spinner with virtual text or a statusline message; support cancellation.",
+        "Delete the temporary session unless a debug flag keeps it."
+      ],
+      "files": [
+        "autoload/opencode9/commands.vim",
+        "autoload/opencode9/prompt.vim",
+        "autoload/opencode9/context.vim",
+        "autoload/opencode9/ui/dialog.vim"
+      ],
+      "apis": [
+        "getline/setline or appendbufline/deletebufline",
+        "timer_start",
+        "prop_add (virtual text)",
+        "POST /api/session/{id}/prompt",
+        "POST /api/session/{id}/interrupt",
+        "DELETE /api/session/{id}"
+      ],
+      "acceptance": [
+        "A visual selection is replaced by the model's reply.",
+        "u restores the previous lines.",
+        "<C-c> cancels and leaves the buffer untouched.",
+        "The temporary session is removed by default."
+      ],
+      "risks": [
+        "Partial replacements can break syntax; default to whole-line replacement.",
+        "A late reply after cancellation must be discarded by request id.",
+        "Temporary session creation can be slow; show progress."
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "Panel tabs, persistence and extensibility",
+      "phase": "Advanced",
+      "effort": "4-6 person-days",
+      "goal": "Support multiple conversations, restore state, and expose user hooks.",
+      "steps": [
+        "Add internal PanelTab objects with session/directory/draft/context.",
+        "Add a one-line tab strip buffer or statusline segment with next/prev/select/close.",
+        "Persist project-scoped tab metadata and restore valid tabs on first use.",
+        "Add prompt history JSONL and up/down navigation.",
+        "Add user hooks: on_file_edited, on_status, on_permission, on_question, on_done.",
+        "Add a local command registry and optional tool formatter registry.",
+        "Add a prompt guard callback."
+      ],
+      "files": [
+        "autoload/opencode9/state.vim",
+        "autoload/opencode9/ui/panel.vim",
+        "autoload/opencode9/config.vim",
+        "autoload/opencode9/commands.vim"
+      ],
+      "apis": [
+        "json_encode/json_decode",
+        "writefile/readfile",
+        "mkdir",
+        "autocmd User",
+        "funcref callbacks"
+      ],
+      "acceptance": [
+        "Two tabs keep independent drafts and sessions.",
+        "Restarting Vim restores valid tabs for the project.",
+        "Hooks fire once per event and errors are isolated.",
+        "A blocked prompt explains why."
+      ],
+      "risks": [
+        "Project grouping is hard to get right for worktrees and remote paths.",
+        "Persistence can resurrect stale or deleted sessions; validate aggressively.",
+        "Too many hooks increase compatibility burden; document stability."
+      ]
+    },
+    {
+      "id": "P9",
+      "name": "V1 adapter and protocol hardening",
+      "phase": "Advanced",
+      "effort": "5-8 person-days",
+      "goal": "Support both OpenCode generations without leaking differences into the UI.",
+      "steps": [
+        "Define the adapter interface precisely from the V2 implementation.",
+        "Add V1 health /global/health and operations for sessions/messages/commands/permissions/questions.",
+        "Add V1 event subscription /global/event and normalization to the shared event shape.",
+        "Gate features that are unsupported and report clear errors.",
+        "Add contract tests against recorded fixtures for both versions.",
+        "Add a startup drift check against /openapi.json where available."
+      ],
+      "files": [
+        "autoload/opencode9/protocol/v1.vim",
+        "autoload/opencode9/protocol/v2.vim",
+        "autoload/opencode9/events.vim",
+        "autoload/opencode9/server.vim"
+      ],
+      "apis": [
+        "GET /global/health",
+        "GET /global/event",
+        "/session*, /permission*, /question*",
+        "GET /openapi.json"
+      ],
+      "acceptance": [
+        "The same prompt/context/event flows work against V1 and V2.",
+        "Unsupported operations fail with an actionable message.",
+        "Recorded event fixtures normalize to the same internal shapes."
+      ],
+      "risks": [
+        "V1 is legacy and may not be worth the maintenance cost.",
+        "The event and message shapes are meaningfully different; normalization is real work.",
+        "Feature parity is not achievable for V2-only endpoints."
+      ]
+    },
+    {
+      "id": "P10",
+      "name": "Hardening, performance, packaging and release",
+      "phase": "Release",
+      "effort": "5-10 person-days",
+      "goal": "Make the plugin dependable on real projects and slow servers.",
+      "steps": [
+        "Add headless tests with assert_equal and fixture servers.",
+        "Add :defcompile and source checks to CI.",
+        "Profile transcript rendering on long sessions; cap rendered messages and skip hidden panels.",
+        "Add request timeouts, cancellation, reconnect backoff and clear error messages.",
+        "Test Windows/macOS path and clipboard behavior if those platforms are in scope.",
+        "Write help, configuration docs, event contract docs and troubleshooting.",
+        "Tag and package with a stable public API."
+      ],
+      "files": [
+        "test/",
+        ".github/workflows/ci.yml",
+        "doc/opencode9.txt",
+        "README.md"
+      ],
+      "apis": [
+        "vim -Nu NONE -es -S test.vim",
+        "assert_equal/assert_true",
+        "v:errors",
+        "defcompile",
+        "job_start fixture server"
+      ],
+      "acceptance": [
+        "CI passes on the minimum supported Vim 9.1 patch level.",
+        "A 1000-message transcript stays responsive.",
+        "Network failures do not leave orphan jobs or stuck UI.",
+        "A new user can install, connect and send a prompt from the docs alone."
+      ],
+      "risks": [
+        "Vim9 compiler/version differences across distro builds.",
+        "No standard test framework; tests must be plain scripts.",
+        "Platform-specific shell tools undermine the vanilla promise."
+      ]
+    }
+  ],
+  "alternative_pathways": [
+    {
+      "id": "A",
+      "name": "Thin bridge only (nickjvandyke parity)",
+      "scope": "P0 + P1 + P2 + P5; no panel, no tabs, no transcript.",
+      "effort": "8-12 person-days",
+      "pros": [
+        "Fastest path to a useful plugin.",
+        "Small surface area and easy to test.",
+        "Reuses native input/select/diff UX."
+      ],
+      "cons": [
+        "No persistent conversation view; users must watch the OpenCode TUI.",
+        "Streaming is not visible while composing.",
+        "Less differentiated than the existing Neovim plugins."
+      ],
+      "recommended_if": "The goal is a dependable Vim-native prompt bridge, not an IDE."
+    },
+    {
+      "id": "B",
+      "name": "Panel-first subset (recommended)",
+      "scope": "P0-P5 plus a minimal panel/renderer; defer tabs, review comments, quick chat and V1.",
+      "effort": "25-35 person-days",
+      "pros": [
+        "Delivers the highest-value UX: streaming chat, context, commands, permissions and edit review.",
+        "Keeps the door open for sudo-tee-like features.",
+        "Still testable and shippable in a reasonable timeframe."
+      ],
+      "cons": [
+        "Rendering and async complexity are the hard part.",
+        "No session tabs or rich review yet.",
+        "V2-only."
+      ],
+      "recommended_if": "The goal is a daily-driver Vim client for OpenCode."
+    },
+    {
+      "id": "C",
+      "name": "Full dual-protocol parity",
+      "scope": "P0-P10 including tabs, rich context, review comments, quick chat, image paste and V1.",
+      "effort": "60-90+ person-days",
+      "pros": [
+        "Closest to sudo-tee feature parity.",
+        "Broadest user base.",
+        "Strong differentiation."
+      ],
+      "cons": [
+        "Large maintenance burden in a smaller ecosystem.",
+        "Protocol drift and UI edge cases dominate.",
+        "High risk of never shipping."
+      ],
+      "recommended_if": "There is a long-term maintainer and a clear user demand."
+    },
+    {
+      "id": "D",
+      "name": "External helper sidecar",
+      "scope": "A small Python/Go helper owns HTTP/SSE/state; Vim9 is a thin UI over JSON-RPC/stdin.",
+      "effort": "15-25 person-days",
+      "pros": [
+        "Much easier async, HTTP, TLS and SSE.",
+        "Portable state machine and easier testing.",
+        "Vim9 UI stays simple."
+      ],
+      "cons": [
+        "Breaks the 'vanilla Vim 9.1 + curl only' constraint.",
+        "Adds a process to install and supervise.",
+        "Two languages to maintain."
+      ],
+      "recommended_if": "The constraint is negotiable and reliability matters more than a single-language plugin."
+    }
+  ],
+  "feature_port_matrix": [
+    {
+      "feature": "Server discovery and start",
+      "portability": "native",
+      "phase": "P1",
+      "notes": "service.json + configured URL + start callback + polling. Use job_start/readfile."
+    },
+    {
+      "feature": "HTTP request layer",
+      "portability": "native",
+      "phase": "P1",
+      "notes": "curl job plus temp files; or synchronous systemlist for a prototype."
+    },
+    {
+      "feature": "SSE subscription",
+      "portability": "adapted",
+      "phase": "P1",
+      "notes": "job_start curl -N, frame parser, heartbeat timer, reconnect."
+    },
+    {
+      "feature": "Prompt and context placeholders",
+      "portability": "native",
+      "phase": "P2",
+      "notes": "String scanner and builders; getregion/getpos/getqflist."
+    },
+    {
+      "feature": "Ask UI",
+      "portability": "adapted",
+      "phase": "P2",
+      "notes": "input() with completion, or a popup input buffer for highlighting."
+    },
+    {
+      "feature": "Operator and ranges",
+      "portability": "native",
+      "phase": "P2",
+      "notes": "operatorfunc and g@."
+    },
+    {
+      "feature": "Select menu and commands",
+      "portability": "native",
+      "phase": "P4",
+      "notes": "popup_menu/inputlist; command list from server."
+    },
+    {
+      "feature": "Panel transcript",
+      "portability": "adapted",
+      "phase": "P3",
+      "notes": "Split windows, scratch buffers, batched writes, text properties."
+    },
+    {
+      "feature": "Markdown rendering",
+      "portability": "limited",
+      "phase": "P3",
+      "notes": "syntax/markdown.vim and conceal; no Treesitter."
+    },
+    {
+      "feature": "Tool/reasoning folds",
+      "portability": "adapted",
+      "phase": "P3",
+      "notes": "Manual folds plus foldtext; manage fold state explicitly."
+    },
+    {
+      "feature": "Session tabs",
+      "portability": "adapted",
+      "phase": "P8",
+      "notes": "Custom tab strip or Vim tabpages; persistence via JSON."
+    },
+    {
+      "feature": "Model/agent pickers",
+      "portability": "native",
+      "phase": "P4",
+      "notes": "Catalog fetch plus popup_menu; persist favorites."
+    },
+    {
+      "feature": "Permissions/questions",
+      "portability": "native",
+      "phase": "P5",
+      "notes": "popup dialogs and REST replies."
+    },
+    {
+      "feature": "Edit diff review",
+      "portability": "native",
+      "phase": "P5",
+      "notes": ":diffpatch, :diffget/:diffput, ]c/[c, buffer-local mappings."
+    },
+    {
+      "feature": "Inline review comments",
+      "portability": "adapted",
+      "phase": "P6",
+      "notes": "sign_place/prop_add and a JSON comment store."
+    },
+    {
+      "feature": "Quick chat",
+      "portability": "adapted",
+      "phase": "P7",
+      "notes": "Temp session, observe text, replace lines, undo."
+    },
+    {
+      "feature": "Image attachments",
+      "portability": "limited",
+      "phase": "deferred",
+      "notes": "Shell out to platform clipboard tools; base64 custom/external."
+    },
+    {
+      "feature": "Completion",
+      "portability": "replace",
+      "phase": "P2/P4",
+      "notes": "complete()/completefunc/omnifunc and popup_menu; no LSP."
+    },
+    {
+      "feature": "Statusline",
+      "portability": "native",
+      "phase": "P4",
+      "notes": "%{Func()} expression."
+    },
+    {
+      "feature": "Health",
+      "portability": "adapted",
+      "phase": "P0",
+      "notes": ":Opencode health instead of :checkhealth."
+    },
+    {
+      "feature": "User event autocmds",
+      "portability": "adapted",
+      "phase": "P1",
+      "notes": "g: event dict + doautocmd User OpencodeEvent:<type>."
+    },
+    {
+      "feature": "V1 support",
+      "portability": "adapted",
+      "phase": "P9",
+      "notes": "Adapter interface; significant normalization work."
+    }
+  ],
+  "milestones": [
+    {
+      "milestone": "M0 - Walking skeleton",
+      "includes": "P0 + P1",
+      "outcome": "Can connect, probe V2, make a request and receive SSE events in a log.",
+      "estimate": "1 week"
+    },
+    {
+      "milestone": "M1 - Prompt bridge",
+      "includes": "P0-P2",
+      "outcome": "Ask/prompt/operator with placeholders, commands and events. Comparable to nickjvandyke's core.",
+      "estimate": "2-3 weeks"
+    },
+    {
+      "milestone": "M2 - Panel client",
+      "includes": "P3-P5",
+      "outcome": "Streaming panel, session/model pickers, permissions and edit diffs. Daily-driver candidate.",
+      "estimate": "5-7 weeks"
+    },
+    {
+      "milestone": "M3 - Advanced workflows",
+      "includes": "P6-P8",
+      "outcome": "Rich context, review comments, quick chat, tabs, persistence and hooks.",
+      "estimate": "9-12 weeks"
+    },
+    {
+      "milestone": "M4 - Compatibility and hardening",
+      "includes": "P9-P10",
+      "outcome": "V1 adapter, contract fixtures, performance work, docs and release.",
+      "estimate": "12-16 weeks"
+    }
+  ],
+  "risks_and_mitigations": [
+    {
+      "risk": "SSE parsing and reconnection bugs",
+      "impact": "High",
+      "mitigation": "Treat the parser as a tested state machine; buffer by frame; heartbeat deadline; capped exponential backoff; integration test against a local SSE server."
+    },
+    {
+      "risk": "Vim9 job callback limitations",
+      "impact": "Medium",
+      "mitigation": "Use global g: callback functions or string names; keep callbacks tiny; pass state through g: dicts/ids. Verified in a smoke test."
+    },
+    {
+      "risk": "Transcript rendering performance",
+      "impact": "High",
+      "mitigation": "Batch writes on a timer, cap rendered messages, skip hidden panels, avoid per-token full rebuilds, profile long sessions."
+    },
+    {
+      "risk": "Text property/fold limitations",
+      "impact": "Medium",
+      "mitigation": "Use prop_add_list, avoid overlapping properties, isolate manual folds, test end-of-line virtual text and zero-width cases."
+    },
+    {
+      "risk": "No Treesitter or LSP",
+      "impact": "Medium",
+      "mitigation": "Use syntax/conceal for Markdown and complete()/popup for completion; set expectations in docs."
+    },
+    {
+      "risk": "Diagnostics gap",
+      "impact": "Medium",
+      "mitigation": "Read quickfix/location lists; document optional integration with external lint/LSP plugins; do not claim diagnostic parity."
+    },
+    {
+      "risk": "Image clipboard/base64 portability",
+      "impact": "Medium",
+      "mitigation": "Defer; detect wl-paste/xclip/pngpaste/PowerShell; shell out to base64; fail with a clear message."
+    },
+    {
+      "risk": "Protocol drift (V1/V2 and event shapes)",
+      "impact": "High",
+      "mitigation": "V2-first; adapter boundary; ignore unknown fields; contract tests with recorded fixtures; clear unsupported-feature errors."
+    },
+    {
+      "risk": "Blocking input() stops streaming",
+      "impact": "Medium",
+      "mitigation": "Use a normal input buffer for the panel; reserve input() for one-shot asks; document the tradeoff."
+    },
+    {
+      "risk": "Permission/edit safety",
+      "impact": "High",
+      "mitigation": "Fail closed on unknown metadata; never silently approve multi-file edits; make apply/reject semantics explicit; rely on undo."
+    },
+    {
+      "risk": "Scope creep toward full sudo-tee parity",
+      "impact": "High",
+      "mitigation": "Ship the thin bridge and panel first; put tabs/review comments/quick chat/image/V1 behind later milestones."
+    }
+  ],
+  "testing_strategy": {
+    "unit": [
+      "JSON/request encoding, URL encoding, path maps, placeholder scanner, event reducer, version compare.",
+      "Use plain Vim9 test scripts with assert_equal/assert_true and v:errors."
+    ],
+    "integration": [
+      "Local Python HTTP/SSE fixture server for discovery, requests, heartbeats, reconnect and events.",
+      "Recorded V1/V2 payload fixtures for normalization and contract tests.",
+      "A fake server that returns 401/404/500 to verify error paths."
+    ],
+    "ui": [
+      "Headless buffer tests for renderer line/property/fold output.",
+      "Manual smoke matrix for split layout, input submit, popup menus, diff review and permission dialogs.",
+      "Long-session performance test with a synthetic transcript."
+    ],
+    "ci": [
+      "vim -Nu NONE -es -S test/run.vim",
+      "defcompile every autoload file",
+      "source plugin from a clean runtimepath",
+      "run on the minimum supported Vim 9.1 patch level and a recent build"
+    ]
+  },
+  "recommendation": {
+    "primary": "Build pathway B: a V2-first, Vim9-native core plus a split-panel transcript, and defer full sudo-tee parity. Start with P0-P2 (thin bridge) to prove transport/context/prompt, then P3-P5 (panel, pickers, permissions, diff). Treat P6-P9 as later milestones.",
+    "reasons": [
+      "It delivers a genuinely useful Vim client in a few weeks instead of a multi-month parity project.",
+      "It maximizes reuse of native Vim behavior (diff, operator, popup, syntax) and minimizes Neovim-only gaps.",
+      "It keeps a clean architecture for later session tabs, review comments, quick chat and V1.",
+      "It avoids the two biggest traps: a literal extmark/Treesitter/LSP port and a full Promise/async port."
+    ],
+    "first_three_deliverables": [
+      "A connection that can discover/start V2, probe /api/info, send a prompt and receive events.",
+      "Ask/prompt/operator with @ placeholders and a select menu for server commands.",
+      "A split panel with debounced streaming output and a normal input buffer."
+    ],
+    "decision_points": [
+      "If the user only needs prompt/context/diff, stop after M1 and skip the panel.",
+      "If reliability matters more than a single-language plugin, consider the sidecar pathway D.",
+      "If V1 users matter, add P9 only after the V2 event/reducer layer is stable."
+    ]
+  },
+  "open_questions": [
+    "Which OpenCode generation is the primary target: V2 only, or must V1 work on day one?",
+    "Is a persistent panel required, or is a thin prompt/context bridge enough?",
+    "Are external binaries acceptable beyond opencode and curl (for clipboard images, base64, fuzzy finders)?",
+    "Which platforms are in scope: Linux only, or Windows/macOS too?",
+    "Is a Python/Go sidecar acceptable if it materially improves reliability?",
+    "How much of sudo-tee's review-comment workflow is required for the first release?",
+    "Should the plugin expose a stable Lua-like extension API, or only Ex commands, functions and autocmds?"
+  ]
+}
