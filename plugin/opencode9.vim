@@ -17,6 +17,7 @@ endif
 
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/commands.vim' as commands
+import autoload 'opencode9/prompt.vim' as prompt
 import autoload 'opencode9/server.vim' as server
 
 def g:Opencode9Shutdown()
@@ -58,7 +59,9 @@ nnoremap <silent> <Plug>(opencode9-help) <Cmd>Opencode help<CR>
 nnoremap <silent> <Plug>(opencode9-health) <Cmd>Opencode health<CR>
 nnoremap <silent> <Plug>(opencode9-prompt) <Cmd>Opencode prompt<CR>
 nnoremap <silent> <Plug>(opencode9-ask) <Cmd>Opencode ask<CR>
-nnoremap <silent> <Plug>(opencode9-operator) <Cmd>Opencode operator<CR>
+xnoremap <silent> <Plug>(opencode9-prompt) :Opencode prompt<CR>
+xnoremap <silent> <Plug>(opencode9-ask) :Opencode ask<CR>
+nnoremap <expr> <Plug>(opencode9-operator) prompt.OperatorExpr('@this')
 nnoremap <silent> <Plug>(opencode9-toggle) <Cmd>Opencode toggle<CR>
 
 # Default mappings are opt-in. Only actions implemented by the current phase
@@ -67,6 +70,8 @@ if get(g:opencode9_config, 'default_mappings', false)
   var mappings = {
     help: '<Plug>(opencode9-help)',
     health: '<Plug>(opencode9-health)',
+    prompt: '<Plug>(opencode9-prompt)',
+    ask: '<Plug>(opencode9-ask)',
   }
   var keymaps = get(g:opencode9_config, 'keymaps', {})
   for [action, plug] in items(mappings)
