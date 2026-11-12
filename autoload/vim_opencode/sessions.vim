@@ -102,18 +102,7 @@ def PrintList(sessions: any)
     \ border: 'rounded',
     \ width: 70,
     \ height: min([len(lines) + 4, 20]),
-    \ callback: (selection: string) => {
-      var session = {}
-      for s in cache
-        if stridx(selection, get(s, 'id', '')) >= 0
-          session = s
-          break
-        endif
-      endfor
-      if !empty(session)
-        OpenSession(session)
-      endif
-    },
+    \ callback: (sel: string) => SessionsPickerSelect(sel),
     \ footer: footer,
     \ }
   popup.Run(spec)
@@ -143,18 +132,7 @@ def ShowPicker(sessions: any)
     \ border: 'rounded',
     \ width: 70,
     \ height: min([len(labels) + 4, 20]),
-    \ callback: (selection: string) => {
-      var session = {}
-      for s in cache
-        if stridx(selection, get(s, 'id', '')) >= 0
-          session = s
-          break
-        endif
-      endfor
-      if !empty(session)
-        OpenSession(session)
-      endif
-    },
+    \ callback: (sel: string) => SessionsPickerSelect(sel),
     \ footer: footer,
     \ }
   popup.Run(spec)
@@ -178,6 +156,19 @@ export def Open(token: string = '')
     id = token
   endif
   panel.OpenSession(id)
+enddef
+
+def SessionsPickerSelect(selection: string)
+  var session = {}
+  for s in cache
+    if stridx(selection, get(s, 'id', '')) >= 0
+      session = s
+      break
+    endif
+  endfor
+  if !empty(session)
+    OpenSession(session)
+  endif
 enddef
 
 # Create a session and show it in the panel. An empty title lets the server
