@@ -62,6 +62,10 @@ enddef
 var fixture_job: any = v:null
 
 try
+  # Ensure temp dir exists.
+  if !isdirectory('/tmp/opencode')
+    call mkdir('/tmp/opencode', 'p')
+  endif
   var sample = '/tmp/opencode/p2_sample.vim'
   writefile(['line one', 'line two', 'line three'], sample)
   execute 'edit ' .. fnameescape(sample)
