@@ -80,6 +80,15 @@ export def Cwd(): string
   return NormalizePath(getcwd())
 enddef
 
+# Return opencode9's per-user state directory, honoring XDG_STATE_HOME.
+export def StateDir(): string
+  var base = getenv('XDG_STATE_HOME')
+  if base ==# ''
+    base = expand('~/.local/state')
+  endif
+  return NormalizePath(base .. '/opencode9')
+enddef
+
 # Create a unique temporary file name.
 export def TempFile(prefix: string = 'opencode9'): string
   return tempname() .. '-' .. prefix
@@ -90,8 +99,8 @@ export def EnsureDir(path: string)
   if path ==# '' || isdirectory(path)
     return
   endif
-  var ok = mkdir(path, 'p')
-  if ok != 1
+  mkdir(path, 'p')
+  if !isdirectory(path)
     throw 'opencode9: cannot create directory: ' .. path
   endif
 enddef
@@ -141,15 +150,13 @@ enddef
 export def Log(level: string, message: string)
   var config = get(g:, 'opencode9_config', {})
   var configured = get(config, 'log_level', 'warn')
-  if !has_key(LOG_LEVELS, level)
-    level = 'info'
-  endif
+  var actual_level = has_key(LOG_LEVELS, level) ? level : 'info'
   var threshold = has_key(LOG_LEVELS, configured) ? LOG_LEVELS[configured] : LOG_LEVELS.warn
-  if LOG_LEVELS[level] > threshold
+  if LOG_LEVELS[actual_level] > threshold
     return
   endif
 
-  var line = strftime('%Y-%m-%dT%H:%M:%S') .. ' [' .. level .. '] ' .. message
+  var line = strftime('%Y-%m-%dT%H:%M:%S') .. ' [' .. actual_level .. '] ' .. message
   var log_file = get(config, 'log_file', '')
   if log_file !=# ''
     try
@@ -160,9 +167,9 @@ export def Log(level: string, message: string)
     endtry
   endif
 
-  if level ==# 'error'
+  if actual_level ==# 'error'
     EchoError(message)
-  elseif level ==# 'warn'
+  elseif actual_level ==# 'warn'
     EchoWarn(message)
   endif
 enddef

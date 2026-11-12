@@ -18,6 +18,8 @@ endif
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/commands.vim' as commands
 import autoload 'opencode9/prompt.vim' as prompt
+import autoload 'opencode9/permissions.vim' as permissions
+import autoload 'opencode9/ui/diff.vim' as diff
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/ui/panel.vim' as panel
 
@@ -88,6 +90,8 @@ if get(g:opencode9_config, 'default_mappings', false)
 endif
 
 panel.Setup()
+permissions.Setup()
+diff.Setup()
 
 augroup opencode9
   autocmd!

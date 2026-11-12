@@ -75,8 +75,8 @@ context ...             Inspect or clear captured context. (P2)
 toggle                  Toggle the conversation panel. (P3)
 open [target]           Open the input, output or panel window. (P3)
 close [target]          Close a panel window. (P3)
-permission ...          Accept or deny pending requests. (P5)
-diff ...                Review the active edit diff. (P5)
+permission ...          List, accept, deny or answer pending requests.
+diff ...                Open, accept, reject or close the active edit diff.
 quickchat               Replace the current range in place. (P7)
 debug ...               Inspect plugin state. (P10)
 
@@ -240,6 +240,12 @@ The plugin also emits local events:
   OpencodeEvent:session.renamed      A session title changed; data.title.
   OpencodeEvent:session.deleted      A session was deleted; data.sessionID.
   OpencodeEvent:session.forked       A session was forked; data.newSessionID.
+  OpencodeEvent:permission.pending  A permission or question needs attention.
+  OpencodeEvent:permission.replied  A permission response was accepted.
+  OpencodeEvent:question.answered   A question response was accepted.
+  OpencodeEvent:diff.pending        A single-file edit is ready for review.
+  OpencodeEvent:diff.accepted       A proposed edit was written to disk.
+  OpencodeEvent:diff.rejected       A proposed edit was discarded.
 
 ==============================================================================
 6. PANEL                                                       *opencode9-panel*

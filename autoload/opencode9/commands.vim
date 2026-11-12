@@ -2,15 +2,18 @@ vim9script
 
 # Command table, parsing and dispatch for :Opencode.
 
+import autoload 'opencode9/catalog.vim' as catalog
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/context.vim' as context
 import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/health.vim' as health
 import autoload 'opencode9/prompt.vim' as prompt
+import autoload 'opencode9/permissions.vim' as permissions
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/sessions.vim' as sessions
 import autoload 'opencode9/state.vim' as state
 import autoload 'opencode9/ui/panel.vim' as panel
+import autoload 'opencode9/ui/diff.vim' as diff
 import autoload 'opencode9/util.vim' as util
 
 const COMMANDS: dict<dict<any>> = {
@@ -20,6 +23,9 @@ const COMMANDS: dict<dict<any>> = {
   config: {phase: 'P0', usage: 'config [path|validate]', description: 'Show or validate configuration', implemented: true},
   server: {phase: 'P1', usage: 'server [status|connect|disconnect|start|stop]', description: 'Manage the OpenCode connection', implemented: true},
   session: {phase: 'P4', usage: 'session [list|pick|new|open|rename|delete|fork]', description: 'Manage conversations', implemented: true},
+  model: {phase: 'P4', usage: 'model [list|pick|current|clear|<model>]', description: 'List or select a model', implemented: true},
+  agent: {phase: 'P4', usage: 'agent [list|pick|current|clear|<agent>]', description: 'List or select an agent', implemented: true},
+  command: {phase: 'P4', usage: 'command [list|pick|run|<name> [args]]', description: 'List or run a server command', implemented: true},
   prompt: {phase: 'P2', usage: 'prompt [text]', description: 'Send a prompt with context placeholders', implemented: true},
   ask: {phase: 'P2', usage: 'ask [text]', description: 'Prompt for text and send it', implemented: true},
   operator: {phase: 'P2', usage: 'operator', description: 'Send the selected range', implemented: true},
@@ -27,8 +33,8 @@ const COMMANDS: dict<dict<any>> = {
   toggle: {phase: 'P3', usage: 'toggle', description: 'Toggle the conversation panel', implemented: true},
   open: {phase: 'P3', usage: 'open [input|output|panel]', description: 'Open a panel window', implemented: true},
   close: {phase: 'P3', usage: 'close [input|output|panel]', description: 'Close a panel window', implemented: true},
-  permission: {phase: 'P5', usage: 'permission [accept|accept_all|deny]', description: 'Answer pending permission requests', implemented: false},
-  diff: {phase: 'P5', usage: 'diff [accept|reject]', description: 'Review the active edit diff', implemented: false},
+  permission: {phase: 'P5', usage: 'permission [list|accept|always|accept_all|deny|ask]', description: 'Answer pending permission requests', implemented: true},
+  diff: {phase: 'P5', usage: 'diff [open|accept|reject|close]', description: 'Review the active edit diff', implemented: true},
   quickchat: {phase: 'P7', usage: 'quickchat', description: 'Edit the current range in place', implemented: false},
   debug: {phase: 'P10', usage: 'debug [on|off|dump]', description: 'Inspect plugin state', implemented: false},
 }
@@ -40,6 +46,9 @@ const ARG_COMPLETIONS: dict<list<string>> = {
   ask: ['@this', '@buffer', '@buffers', '@visible', '@quickfix', '@marks', '@diagnostics'],
   server: ['status', 'connect', 'disconnect', 'start', 'stop'],
   session: ['list', 'pick', 'new', 'open', 'rename', 'delete', 'fork'],
+  model: ['list', 'pick', 'current', 'clear'],
+  agent: ['list', 'pick', 'current', 'clear'],
+  command: ['list', 'pick', 'run'],
   open: ['input', 'output', 'panel'],
   close: ['input', 'output', 'panel', 'diff'],
   permission: ['accept', 'accept_all', 'deny'],
@@ -70,6 +79,16 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       Server(rest)
     elseif name ==# 'session'
       Session(rest, bang)
+    elseif name ==# 'model'
+      Model(rest)
+    elseif name ==# 'agent'
+      Agent(rest)
+    elseif name ==# 'command'
+      Command(rest)
+    elseif name ==# 'permission'
+      Permission(rest)
+    elseif name ==# 'diff'
+      Diff(rest)
     elseif name ==# 'prompt'
       PromptCommand(rest, range)
     elseif name ==# 'ask'
@@ -272,6 +291,97 @@ def Session(rest: string, bang: bool)
     echomsg 'opencode9: session ' .. (id ==# '' ? 'none' : id)
   else
     util.EchoError('unknown session command "' .. action .. '"; try :Opencode session list')
+  endif
+enddef
+
+def Permission(rest: string)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S\+')
+  var token = trim(substitute(argument, '^\S\+\s*', '', ''))
+  if action ==# '' || action ==# 'list'
+    var lines: list<string> = []
+    var index = 1
+    for item in permissions.Pending()
+      lines->add(printf('[%d] %s  %s', index, item.id, item.title))
+      index += 1
+    endfor
+    echomsg empty(lines) ? 'opencode9: no pending permission requests' : join(lines, "\n")
+  elseif action ==# 'ask'
+    permissions.Ask()
+  elseif action ==# 'accept'
+    permissions.Accept(token)
+  elseif action ==# 'always' || action ==# 'accept_all'
+    permissions.Always(token)
+  elseif action ==# 'deny'
+    permissions.Deny(token)
+  else
+    util.EchoError('unknown permission action "' .. action .. '"')
+  endif
+enddef
+
+def Diff(rest: string)
+  var action = trim(rest)
+  if action ==# '' || action ==# 'open'
+    diff.Open()
+  elseif action ==# 'accept'
+    diff.Accept()
+  elseif action ==# 'reject'
+    diff.Reject()
+  elseif action ==# 'close'
+    diff.Close()
+  else
+    util.EchoError('unknown diff action "' .. action .. '"')
+  endif
+enddef
+
+def Model(rest: string)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S\+')
+  if action ==# '' || action ==# 'list'
+    catalog.ListModels()
+  elseif action ==# 'pick'
+    catalog.PickModel()
+  elseif action ==# 'current'
+    var label = catalog.ModelLabel()
+    echomsg 'opencode9: model ' .. (label ==# '' ? 'not selected' : label)
+  elseif action ==# 'clear'
+    catalog.ClearModel()
+  else
+    catalog.SelectModel(argument)
+  endif
+enddef
+
+def Agent(rest: string)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S\+')
+  if action ==# '' || action ==# 'list'
+    catalog.ListAgents()
+  elseif action ==# 'pick'
+    catalog.PickAgent()
+  elseif action ==# 'current'
+    var label = catalog.AgentLabel()
+    echomsg 'opencode9: agent ' .. (label ==# '' ? 'not selected' : label)
+  elseif action ==# 'clear'
+    catalog.ClearAgent()
+  else
+    catalog.SelectAgent(argument)
+  endif
+enddef
+
+def Command(rest: string)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S\+')
+  var tail = trim(substitute(argument, '^\S\+\s*', '', ''))
+  if action ==# '' || action ==# 'list'
+    catalog.ListCommands()
+  elseif action ==# 'pick'
+    catalog.PickCommand()
+  elseif action ==# 'run'
+    var name = matchstr(tail, '^\S\+')
+    var arguments = trim(substitute(tail, '^\S\+\s*', '', ''))
+    catalog.RunCommand(name, arguments)
+  else
+    catalog.RunCommand(action, tail)
   endif
 enddef
 

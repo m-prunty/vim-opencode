@@ -161,12 +161,69 @@ export def SessionId(value: any): string
   return type(id) == v:t_string ? id : ''
 enddef
 
-# Send a plain-text prompt to a session.
-export def Prompt(conn: any, session_id: string, text: string, on_success: any, on_error: any): number
+# List models, agents, providers and server commands. The raw response is
+# returned to the caller, which normalizes the shapes it understands.
+export def ListModels(conn: any, on_success: any, on_error: any): number
+  return conn.Request('/api/model', 'GET', v:null, on_success, on_error)
+enddef
+
+export def ListProviders(conn: any, on_success: any, on_error: any): number
+  return conn.Request('/api/provider', 'GET', v:null, on_success, on_error)
+enddef
+
+export def ListAgents(conn: any, on_success: any, on_error: any): number
+  return conn.Request('/api/agent', 'GET', v:null, on_success, on_error)
+enddef
+
+export def ListCommands(conn: any, on_success: any, on_error: any): number
+  return conn.Request('/api/command', 'GET', v:null, on_success, on_error)
+enddef
+
+export def ReplyPermission(conn: any, session_id: string, request_id: string, reply: string, on_success: any, on_error: any): number
+  return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/permission/' .. util.UrlEncode(request_id) .. '/reply', 'POST', {reply: reply}, on_success, on_error)
+enddef
+
+export def ReplyQuestion(conn: any, session_id: string, request_id: string, answer: string, on_success: any, on_error: any): number
+  return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/question/' .. util.UrlEncode(request_id) .. '/reply', 'POST', {answer: answer}, on_success, on_error)
+enddef
+
+# Run a server command in a session.
+export def RunCommand(conn: any, session_id: string, name: string, arguments: string, opts: dict<any>, on_success: any, on_error: any): number
+  var body: dict<any> = {command: name, arguments: arguments}
+  if type(get(opts, 'model', v:null)) != v:t_none
+    body.model = opts.model
+  endif
+  if get(opts, 'agent', '') !=# ''
+    body.agent = opts.agent
+  endif
+  if get(opts, 'variant', '') !=# ''
+    body.variant = opts.variant
+  endif
+  return conn.Request(
+    '/api/session/' .. util.UrlEncode(session_id) .. '/command',
+    'POST',
+    body,
+    on_success,
+    on_error)
+enddef
+
+# Send a plain-text prompt to a session. opts may carry a model dictionary
+# and/or an agent name.
+export def Prompt(conn: any, session_id: string, text: string, on_success: any, on_error: any, opts: dict<any> = {}): number
+  var body: dict<any> = {text: text}
+  if type(get(opts, 'model', v:null)) != v:t_none
+    body.model = opts.model
+  endif
+  if get(opts, 'agent', '') !=# ''
+    body.agent = opts.agent
+  endif
+  if get(opts, 'variant', '') !=# ''
+    body.variant = opts.variant
+  endif
   return conn.Request(
     '/api/session/' .. util.UrlEncode(session_id) .. '/prompt',
     'POST',
-    {text: text},
+    body,
     on_success,
     on_error)
 enddef

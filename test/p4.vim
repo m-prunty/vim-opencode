@@ -2,13 +2,16 @@ vim9script
 
 # P4 headless smoke test for session listing and lifecycle commands.
 
+import autoload 'opencode9/catalog.vim' as catalog
 import autoload 'opencode9/commands.vim' as commands
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/discovery.vim' as discovery
+import autoload 'opencode9/prompt.vim' as prompt
 import autoload 'opencode9/protocol/v2.vim' as v2
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/sessions.vim' as sessions
 import autoload 'opencode9/state.vim' as state
+import autoload 'opencode9/transport.vim' as transport
 import autoload 'opencode9/ui/panel.vim' as panel
 import autoload 'opencode9/util.vim' as util
 
@@ -22,6 +25,10 @@ var connected: any = v:null
 var discovery_error = ''
 var listed: any = v:null
 var list_error = ''
+var runs: any = v:null
+var runs_error = ''
+var prompts: any = v:null
+var prompts_error = ''
 var fixture_job: any = v:null
 
 def Check(condition: bool, message: string)
@@ -46,6 +53,22 @@ def ListErr(message: string, exit: number, status: number)
   list_error = message
 enddef
 
+def RunsOk(value: any, status: number)
+  runs = value
+enddef
+
+def RunsErr(message: string, exit: number, status: number)
+  runs_error = message
+enddef
+
+def PromptsOk(value: any, status: number)
+  prompts = value
+enddef
+
+def PromptsErr(message: string, exit: number, status: number)
+  prompts_error = message
+enddef
+
 def WaitFor(label: string, Predicate: func)
   var attempts = 0
   while attempts < 100
@@ -64,6 +87,11 @@ def WaitFor(label: string, Predicate: func)
 enddef
 
 try
+  setenv('XDG_STATE_HOME', '/tmp/opencode/p4-state')
+  var prefs = catalog.PreferencesFile()
+  if filereadable(prefs)
+    delete(prefs)
+  endif
   config.Setup({server_url: BASE, request_timeout_ms: 3000})
 
   fixture_job = job_start(['python3', script_dir .. '/fixtures/server.py', PORT])
@@ -103,6 +131,95 @@ try
   lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
   Check(index(lines, '  model: anthropic/claude') >= 0, 'info header should show the model')
   Check(join(lines, "\n") =~# 'fixture question', 'transcript should survive header updates')
+
+  # Model, agent and command catalogs.
+  catalog.RefreshModels()
+  WaitFor('models', () => !empty(catalog.Models()))
+  Check(catalog.Models()[0].key ==# 'anthropic/claude-3', 'first model key is wrong')
+  Check(catalog.FindModel('2').key ==# 'openai/gpt-4o', 'numeric model token did not resolve')
+  Check(catalog.SelectModel('anthropic/claude-3'), 'model selection failed')
+  Check(catalog.ModelLabel() ==# 'anthropic/claude-3', 'model label is wrong')
+  Check(filereadable(prefs), 'preferences file should be written')
+  var prefs_data = util.JsonDecode(join(readfile(prefs), "\n"))
+  Check(get(get(prefs_data, 'model', {}), 'providerID', '') ==# 'anthropic', 'preferences should store the model provider')
+
+  catalog.RefreshAgents()
+  WaitFor('agents', () => !empty(catalog.Agents()))
+  Check(catalog.SelectAgent('build'), 'agent selection failed')
+  Check(catalog.AgentLabel() ==# 'build', 'agent label is wrong')
+  prefs_data = util.JsonDecode(join(readfile(prefs), "\n"))
+  Check(get(prefs_data, 'agent', '') ==# 'build', 'preferences should store the agent')
+
+  catalog.RefreshCommands()
+  WaitFor('commands', () => !empty(catalog.Commands()))
+  var command_names: list<string> = []
+  for entry in catalog.Commands()
+    command_names->add(entry.name)
+  endfor
+  Check(index(command_names, 'review') >= 0, 'command catalog should contain review')
+  Check(index(catalog.Complete('/re'), '/review') >= 0, 'command completion should offer /review')
+  Check(index(catalog.Complete('@th'), '@this') >= 0, 'completion should offer context placeholders')
+
+  panel.Flush()
+  lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  Check(index(lines, '  model: anthropic/claude-3') >= 0, 'info header should show the selected model')
+  Check(index(lines, '  agent: build') >= 0, 'info header should show the selected agent')
+
+  # :Opencode open renders the complete environment header, including the
+  # active session, model, agent and Vim/plugin versions.
+  panel.Close()
+  commands.Dispatch('open', [0, 0], false)
+  Check(panel.IsOpen(), ':Opencode open should reopen the panel')
+  panel.Flush()
+  lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  Check(index(lines, '  server: ' .. BASE .. ' (version 2.0.0)') >= 0, 'open header should show the server and version')
+  Check(index(lines, '  directory: ' .. util.Cwd()) >= 0, 'open header should show the directory')
+  Check(join(lines, "\n") =~# '  env: vim ', 'open header should show environment versions: ' .. join(lines, ' | '))
+  Check(index(lines, '  session: s1') >= 0, 'open header should show the session')
+  Check(index(lines, '  model: anthropic/claude-3') >= 0, 'open header should show the model')
+  Check(index(lines, '  agent: build') >= 0, 'open header should show the agent')
+
+  # Server command execution uses the current session and selections.
+  catalog.RunCommand('review', 'src')
+  sleep 300m
+  transport.Request({
+    url: BASE .. '/api/command_runs',
+    method: 'GET',
+    timeout_ms: 3000,
+    on_success: RunsOk,
+    on_error: RunsErr,
+  })
+  WaitFor('command runs', () => type(runs) != v:t_none)
+  Check(runs_error ==# '', 'command run query failed: ' .. runs_error)
+  var run_list = type(runs) == v:t_dict ? get(runs, 'data', []) : runs
+  Check(type(run_list) == v:t_list && len(run_list) == 1, 'fixture should record one command run')
+  if type(run_list) == v:t_list && len(run_list) == 1
+    Check(get(run_list[0], 'command', '') ==# 'review', 'command name was not sent')
+    Check(get(run_list[0], 'arguments', '') ==# 'src', 'command arguments were not sent')
+    Check(get(run_list[0], 'sessionID', '') ==# 's1', 'command used the wrong session')
+    Check(get(get(run_list[0], 'model', {}), 'providerID', '') ==# 'anthropic', 'command did not include the model')
+    Check(get(run_list[0], 'agent', '') ==# 'build', 'command did not include the agent')
+  endif
+
+  # Prompts include the selected model and agent.
+  prompt.Send('catalog prompt', [0, 0])
+  sleep 300m
+  transport.Request({
+    url: BASE .. '/api/prompts',
+    method: 'GET',
+    timeout_ms: 3000,
+    on_success: PromptsOk,
+    on_error: PromptsErr,
+  })
+  WaitFor('prompts', () => type(prompts) != v:t_none)
+  Check(prompts_error ==# '', 'prompt query failed: ' .. prompts_error)
+  var plist = type(prompts) == v:t_dict ? get(prompts, 'data', []) : prompts
+  Check(type(plist) == v:t_list && len(plist) == 1, 'fixture should record one prompt')
+  if type(plist) == v:t_list && len(plist) == 1
+    Check(get(plist[0], 'text', '') ==# 'catalog prompt', 'prompt text was not sent')
+    Check(get(get(plist[0], 'model', {}), 'providerID', '') ==# 'anthropic', 'prompt did not include the model')
+    Check(get(plist[0], 'agent', '') ==# 'build', 'prompt did not include the agent')
+  endif
 
   # Create a new session and open it.
   sessions.New('Code review')

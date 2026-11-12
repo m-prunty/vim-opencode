@@ -44,6 +44,8 @@ export def Report(): list<string>
   lines->add(ModuleStatus('render', 'autoload/opencode9/ui/render.vim', 'P3'))
   lines->add(ModuleStatus('panel', 'autoload/opencode9/ui/panel.vim', 'P3'))
   lines->add(ModuleStatus('sessions', 'autoload/opencode9/sessions.vim', 'P4'))
+  lines->add(ModuleStatus('permissions', 'autoload/opencode9/permissions.vim', 'P5'))
+  lines->add(ModuleStatus('diff', 'autoload/opencode9/ui/diff.vim', 'P5'))
 
   var doc = globpath(&runtimepath, 'doc/opencode9.txt', true, true)
   lines->add(Status(!empty(doc), 'documentation', 'doc/opencode9.txt'))

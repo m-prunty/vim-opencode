@@ -8,8 +8,34 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 PROMPTS = []
+COMMAND_RUNS = []
+PERMISSION_REPLIES = []
+QUESTION_REPLIES = []
 SESSIONS = [{"id": "s1", "title": "Fixture", "time": {"updated": 1}}]
 COUNTER = [1]
+MODELS = [
+    {
+        "id": "claude-3",
+        "providerID": "anthropic",
+        "modelID": "claude-3",
+        "name": "Claude 3",
+        "variants": ["fast", "deep"],
+    },
+    {
+        "id": "gpt-4o",
+        "providerID": "openai",
+        "modelID": "gpt-4o",
+        "name": "GPT-4o",
+    },
+]
+AGENTS = [
+    {"name": "build", "description": "Write and edit code"},
+    {"name": "plan", "description": "Plan before editing"},
+]
+COMMANDS = [
+    {"name": "review", "description": "Review the working tree", "argumentHint": "[path]"},
+    {"name": "test", "description": "Run the test suite"},
+]
 MESSAGES = {
     "s1": [
         {
@@ -57,6 +83,36 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path.startswith("/api/info"):
             self.send_json(200, {"version": "2.0.0", "healthy": True})
+        elif path == "/api/command_runs":
+            self.send_json(200, {"data": COMMAND_RUNS})
+        elif path == "/api/permission_replies":
+            self.send_json(200, {"data": PERMISSION_REPLIES})
+        elif path == "/api/question_replies":
+            self.send_json(200, {"data": QUESTION_REPLIES})
+        elif path == "/api/model":
+            self.send_json(200, {"data": MODELS})
+        elif path == "/api/provider":
+            self.send_json(
+                200,
+                {
+                    "data": [
+                        {
+                            "id": "anthropic",
+                            "name": "Anthropic",
+                            "models": [MODELS[0]],
+                        },
+                        {
+                            "id": "openai",
+                            "name": "OpenAI",
+                            "models": [MODELS[1]],
+                        },
+                    ]
+                },
+            )
+        elif path == "/api/agent":
+            self.send_json(200, {"data": AGENTS})
+        elif path == "/api/command":
+            self.send_json(200, {"data": COMMANDS})
         elif path.startswith("/api/session/") and path.endswith("/message"):
             session_id = self.session_id("/api/session/", "/message")
             self.send_json(200, {"data": MESSAGES.get(session_id, [])})
@@ -99,6 +155,21 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/session/") and path.endswith("/prompt"):
             payload = self.read_json()
             PROMPTS.append(payload)
+            self.send_json(200, {"ok": True})
+        elif path.startswith("/api/session/") and path.endswith("/permission/p1/reply"):
+            payload = self.read_json()
+            payload["requestID"] = "p1"
+            PERMISSION_REPLIES.append(payload)
+            self.send_json(200, {"ok": True})
+        elif path.startswith("/api/session/") and path.endswith("/question/q1/reply"):
+            payload = self.read_json()
+            payload["requestID"] = "q1"
+            QUESTION_REPLIES.append(payload)
+            self.send_json(200, {"ok": True})
+        elif path.startswith("/api/session/") and path.endswith("/command"):
+            payload = self.read_json()
+            payload["sessionID"] = self.session_id("/api/session/", "/command")
+            COMMAND_RUNS.append(payload)
             self.send_json(200, {"ok": True})
         elif path.startswith("/api/session/") and path.endswith("/fork"):
             session_id = self.session_id("/api/session/", "/fork")

@@ -6,6 +6,7 @@ vim9script
 # three-line input below it. Streaming events update the state model; a debounce
 # timer batches redraws so the editor never blocks on every token.
 
+import autoload 'opencode9/catalog.vim' as catalog
 import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/context.vim' as context
 import autoload 'opencode9/events.vim' as events
@@ -105,7 +106,11 @@ enddef
 def InfoChunk(): dict<any>
   var status = server.Status()
   var session = state.SessionId()
-  var model = state.Model()
+  var model = catalog.ModelLabel()
+  if model ==# ''
+    model = state.Model()
+  endif
+  var agent = catalog.AgentLabel()
   var lines: list<string> = ['# OpenCode']
   if status.connected
     var version = status.version ==# '' ? 'unknown' : status.version
@@ -116,7 +121,9 @@ def InfoChunk(): dict<any>
   endif
   lines->add('  session: ' .. (session ==# '' ? 'none' : session))
   lines->add('  model: ' .. (model ==# '' ? 'unknown' : model))
+  lines->add('  agent: ' .. (agent ==# '' ? 'default' : agent))
   lines->add('  commands: :Opencode toggle | :Opencode ask <text> | :Opencode prompt <text>')
+  lines->add('  env: vim ' .. v:version .. ' opencode9.vim ' .. get(g:, 'opencode9_version', '?'))
   lines->add('')
   var key = 'info:' .. join([
     status.connected ? status.url : 'offline',
@@ -124,6 +131,7 @@ def InfoChunk(): dict<any>
     status.directory,
     session,
     model,
+    agent,
   ], '|')
   return {
     key: key,
@@ -677,6 +685,11 @@ def OnEvent(event: any)
     if IsOpen()
       EnsureSessionAsync()
     endif
+    return
+  endif
+  var catalog_event = event_type ==# 'model.selected' || event_type ==# 'model.cleared' || event_type ==# 'agent.selected' || event_type ==# 'agent.cleared'
+  if catalog_event
+    MarkDirty()
     return
   endif
   if event_type ==# 'prompt.sent'

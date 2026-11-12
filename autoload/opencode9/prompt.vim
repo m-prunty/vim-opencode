@@ -2,6 +2,7 @@ vim9script
 
 # Context-aware prompt, ask and operator workflows.
 
+import autoload 'opencode9/catalog.vim' as catalog
 import autoload 'opencode9/context.vim' as context
 import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/events.vim' as events
@@ -103,7 +104,8 @@ def Submit(conn: any, session: any, text: string, ctx: dict<any>)
   var rendered = context.Render(text, ctx)
   v2.Prompt(conn, session_id, rendered,
     (result: any, status: number) => Succeeded(ctx, session_id, rendered),
-    (message: string, exit: number, status: number) => Fail(ctx, message))
+    (message: string, exit: number, status: number) => Fail(ctx, message),
+    catalog.PromptOptions())
 enddef
 
 def Succeeded(ctx: dict<any>, session_id: string, text: string)
