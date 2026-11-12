@@ -40,7 +40,7 @@ implementation plan and `doc/opencode9.txt` for user documentation.
 Use a Vim package manager, or add this repository to `runtimepath`:
 
 ```vim
-set runtimepath+=/path/to/opencode9.vim
+set runtimepath+=/path/to/vim-opencode
 ```
 
 Then source the plugin or restart Vim:
