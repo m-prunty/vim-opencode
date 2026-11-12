@@ -129,6 +129,7 @@ enddef
 def InstallPopupMappings(winid: number, spec: dict<any>)
   var base: dict<any> = {
     \ '<CR>': funcref('VimOpencodePopupSelect'),
+    \ '<C-o>': funcref('VimOpencodePopupPeek'),
     \ '<C-q>': funcref('VimOpencodePopupCloseById'),
     \ '<C-e>': funcref('VimOpencodePopupScrollDown'),
     \ '<C-y>': funcref('VimOpencodePopupScrollUp'),
@@ -168,6 +169,26 @@ function! VimOpencodePopupSelect() abort
     endif
   endif
   VimOpencodePopupCloseById(winid)
+enddef
+
+function! VimOpencodePopupPeek() abort
+  var winid = CurrentPopup()
+  if winid == 0
+    return
+  endif
+  var spec = get(g:vim_opencode_popup_specs, winid, {})
+  var result = BuildLines(spec)
+  var title_lines = result[1]
+  var border_offset = result[2]
+  var pos = popup_getpos(winid)
+  var idx = pos.line - title_lines - border_offset
+  var items = get(spec, 'items', [])
+  if idx >= 1 && idx <= len(items)
+    var cb = get(spec, 'callback', v:null)
+    if type(cb) == v:func
+      call(cb, [items[idx - 1]])
+    endif
+  endif
 enddef
 
 function! VimOpencodePopupCloseById() abort
