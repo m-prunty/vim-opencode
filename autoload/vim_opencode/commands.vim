@@ -16,6 +16,7 @@ import autoload 'vim_opencode/sessions.vim' as sessions
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/tabs.vim' as tabs
 import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/ui/palette.vim' as palette
 import autoload 'vim_opencode/ui/diff.vim' as diff
 import autoload 'vim_opencode/review.vim' as review
 import autoload 'vim_opencode/util.vim' as util
@@ -37,6 +38,7 @@ const COMMANDS: dict<dict<any>> = {
   toggle: {phase: 'P3', usage: 'toggle', description: 'Toggle the conversation panel', implemented: true},
   open: {phase: 'P3', usage: 'open [input|output|panel]', description: 'Open a panel window', implemented: true},
   close: {phase: 'P3', usage: 'close [input|output|panel]', description: 'Close a panel window', implemented: true},
+  palette: {phase: 'P3', usage: 'palette', description: 'Open the interactive command palette', implemented: true},
   permission: {phase: 'P5', usage: 'permission [list|accept|always|accept_all|deny|ask]', description: 'Answer pending permission requests', implemented: true},
   diff: {phase: 'P5', usage: 'diff [open|accept|reject|close]', description: 'Review the active edit diff', implemented: true},
   review: {phase: 'P6', usage: 'review [list|add|clear]', description: 'Manage review comments', implemented: true},
@@ -115,6 +117,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       panel.OpenTarget(trim(rest))
     elseif name ==# 'close'
       panel.CloseTarget(trim(rest))
+    elseif name ==# 'palette'
+      palette.Palette()
     elseif name ==# 'debug'
       DebugCommand(rest)
     elseif has_key(COMMANDS, name)
