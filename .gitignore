@@ -8,6 +8,7 @@
 # Test and temporary artifacts
 test/tmp/
 test/results/
+__pycache__/
 *.log
 
 # Generated help tags

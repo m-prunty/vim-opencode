@@ -9,8 +9,9 @@ CONTENTS                                                     *opencode9-contents
   4. Configuration ....................... |opencode9-configuration|
   5. Events .............................. |opencode9-events|
   6. Panel ............................... |opencode9-panel|
-  7. Functions ........................... |opencode9-functions|
-  8. Development ......................... |opencode9-development|
+  7. Sessions ............................ |opencode9-sessions|
+  8. Functions ........................... |opencode9-functions|
+  9. Development ......................... |opencode9-development|
 
 ==============================================================================
 1. INTRODUCTION                                             *opencode9-introduction*
@@ -62,7 +63,8 @@ server [action]         Manage discovery and the connection. Actions:
                           disconnect  Close the stream and stop reconnecting.
                           start       Run the configured server_command.
                           stop        Stop a server started by this plugin.
-session ...             List, create, open or delete conversations. (P4)
+session ...             List, create, open, rename, fork or delete conversations.
+                        See |opencode9-sessions|.
 prompt [text]           Send a prompt with @ placeholders. With no text, open
                         the ask input. A trailing ... opens ask with the text
                         before it as the initial value.
@@ -233,6 +235,11 @@ The plugin also emits local events:
   OpencodeEvent:server.disconnected  Stream lost; before a reconnect attempt.
   OpencodeEvent:prompt.sent          Prompt POST succeeded; data.sessionID.
   OpencodeEvent:prompt.failed        Prompt failed; data.message.
+  OpencodeEvent:session.opened       A session was attached to the panel.
+  OpencodeEvent:session.created      A new session was created; data.sessionID.
+  OpencodeEvent:session.renamed      A session title changed; data.title.
+  OpencodeEvent:session.deleted      A session was deleted; data.sessionID.
+  OpencodeEvent:session.forked       A session was forked; data.newSessionID.
 
 ==============================================================================
 6. PANEL                                                       *opencode9-panel*
@@ -280,7 +287,37 @@ editor never blocks while tokens stream in. Scrolling up is preserved: new
 content only jumps to the bottom when the view was already at the bottom.
 
 ==============================================================================
-7. FUNCTIONS                                                 *opencode9-functions*
+7. SESSIONS                                                   *opencode9-sessions*
+
+Sessions are listed per working directory. The plugin keeps a small cache so
+commands can refer to a session by its full id, a unique id prefix, or the
+number shown by |:Opencode| session list.
+
+                                                              *opencode9-session-commands*
+:Opencode session                 List sessions for the current directory.
+:Opencode session list            Same as above.
+:Opencode session pick            Choose a session from a popup menu.
+:Opencode session new [title]     Create a session and open it in the panel.
+:Opencode session open [id]       Open a session. With no id, follow the most
+                                  recently updated session again.
+:Opencode session rename [id] [title]
+                                  Rename a session. The title is prompted for
+                                  when omitted.
+:Opencode session delete [id]     Delete a session after confirmation.
+:Opencode session delete! [id]    Delete without prompting.
+:Opencode session fork [id]       Fork a session. With no id, fork the current
+                                  session.
+:Opencode session current         Print the session attached to the panel.
+
+Opening a session pins it: reconnecting or reopening the panel keeps that
+session instead of jumping back to the most recently updated one. Use
+:Opencode session open with no id to follow the most recent session again.
+
+The info header at the top of the transcript shows the active server, working
+directory, session and model. It updates as events arrive.
+
+==============================================================================
+8. FUNCTIONS                                                 *opencode9-functions*
 
 The public function surface follows the command surface. Each action will be
 available as both an Ex command and a function so mappings and integrations do
@@ -288,7 +325,7 @@ not need to parse command strings. Names are finalized with the phase that
 implements them.
 
 ==============================================================================
-8. DEVELOPMENT                                             *opencode9-development*
+9. DEVELOPMENT                                             *opencode9-development*
 
 Run the headless smoke tests from the repository root:
 

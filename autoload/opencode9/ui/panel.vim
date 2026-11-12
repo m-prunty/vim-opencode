@@ -35,6 +35,7 @@ var history: list<string> = []
 var history_index = 0
 var setup_done = false
 var loading_session = false
+var session_pinned = false
 
 # ---------------------------------------------------------------------------
 # Lifecycle
@@ -92,26 +93,23 @@ export def Open()
   if draft !=# ''
     SetInput(draft)
   endif
-  # Show the current server/session/model/environment info at the top of
-  # the transcript when the panel opens.
-  RenderInfo()
   Flush()
   FocusInput()
   EnsureSessionAsync()
   events.EmitLocal('panel.opened', {sessionID: state.SessionId()})
 enddef
 
-# Render a header line summarizing the active server, session, model and
-# directory at the top of the transcript.
-def RenderInfo()
+# Build the header chunk shown above the transcript. Keeping it as a regular
+# render chunk means Flush() redraws it together with the messages and the
+# header updates when the server, session or model changes.
+def InfoChunk(): dict<any>
   var status = server.Status()
   var session = state.SessionId()
   var model = state.Model()
-  var lines: list<string> = []
-  lines->add('# OpenCode')
+  var lines: list<string> = ['# OpenCode']
   if status.connected
-    lines->add('  server: ' .. status.url)
-    lines->add('  version: ' .. (status.version ==# '' ? 'unknown' : status.version))
+    var version = status.version ==# '' ? 'unknown' : status.version
+    lines->add('  server: ' .. status.url .. ' (version ' .. version .. ')')
     lines->add('  directory: ' .. status.directory)
   else
     lines->add('  server: not connected')
@@ -120,11 +118,20 @@ def RenderInfo()
   lines->add('  model: ' .. (model ==# '' ? 'unknown' : model))
   lines->add('  commands: :Opencode toggle | :Opencode ask <text> | :Opencode prompt <text>')
   lines->add('')
-  setbufvar(output_buf, '&modifiable', v:true)
-  setbufvar(output_buf, '&readonly', v:false)
-  setbufline(output_buf, 1, lines)
-  setbufvar(output_buf, '&modifiable', v:false)
-  setbufvar(output_buf, '&readonly', v:true)
+  var key = 'info:' .. join([
+    status.connected ? status.url : 'offline',
+    status.version,
+    status.directory,
+    session,
+    model,
+  ], '|')
+  return {
+    key: key,
+    kind: 'info',
+    lines: lines,
+    fold: false,
+    props: [{offset: 0, col: 1, length: 1, group: 'Opencode9Muted'}],
+  }
 enddef
 
 export def Close()
@@ -415,7 +422,7 @@ export def Flush()
     return
   endif
 
-  var chunks = render.Chunks()
+  var chunks = [InfoChunk()] + render.Chunks()
   var common = CommonPrefix(chunks)
   if common == len(rendered) && common == len(chunks)
     return
@@ -583,8 +590,37 @@ enddef
 # ---------------------------------------------------------------------------
 # Session attachment
 
+# Open a specific session in the panel. The session stays pinned so a later
+# reconnection or panel reopen does not silently switch back to the most
+# recently updated session.
+export def OpenSession(session_id: string)
+  if session_id ==# ''
+    return
+  endif
+  var conn = server.Current()
+  if type(conn) == v:t_none
+    util.EchoError('not connected; run :Opencode server connect')
+    return
+  endif
+  session_pinned = true
+  Open()
+  state.EnsureSession(session_id)
+  rendered = []
+  LoadSnapshot(conn, session_id)
+  Flush()
+  events.EmitLocal('session.opened', {sessionID: session_id})
+enddef
+
+# Unpin the current session and follow the most recently updated session for
+# the current directory again.
+export def FollowRecent()
+  session_pinned = false
+  Open()
+  EnsureSessionAsync()
+enddef
+
 def EnsureSessionAsync()
-  if loading_session
+  if loading_session || session_pinned
     return
   endif
   var conn = server.Current()
@@ -604,6 +640,9 @@ def EnsureSessionAsync()
 enddef
 
 def AttachSession(conn: any, session: any)
+  if session_pinned
+    return
+  endif
   var id = type(session) == v:t_dict ? get(session, 'id', '') : ''
   if type(id) != v:t_string || id ==# ''
     return
@@ -619,6 +658,11 @@ enddef
 def LoadSnapshot(conn: any, session_id: string)
   v2.LoadMessages(conn, session_id, SNAPSHOT_LIMIT,
     (value: any, status: number) => {
+      # Ignore a response that arrives after the user switched or deleted the
+      # session; otherwise stale data could resurrect the old transcript.
+      if state.SessionId() !=# session_id
+        return
+      endif
       var items = type(value) == v:t_dict ? get(value, 'data', value) : value
       state.Snapshot(session_id, items)
     },

@@ -50,6 +50,7 @@ enddef
 export def Status(): dict<any>
   return {
     sessionID: session_id,
+    model: model,
     version: version,
     messages: len(messages),
   }
@@ -132,6 +133,13 @@ export def Apply(event: any): bool
     return false
   endif
 
+  # Ignore events that do not change the transcript before looking at their
+  # session id. Otherwise a status or lifecycle event could silently adopt a
+  # session without notifying listeners.
+  if !HandledEvent(event_type)
+    return false
+  endif
+
   # Session-scoped message events. Session status and lifecycle events carry a
   # sessionID too, but do not touch the transcript.
   var event_session = get(data, 'sessionID', '')
@@ -150,9 +158,9 @@ export def Apply(event: any): bool
     var assistant = EnsureMessage(GetString(data, 'assistantMessageID'), 'assistant')
     assistant.agent = GetString(data, 'agent')
     assistant.model = get(data, 'model', v:null)
-    var m = get(data, 'model', v:null)
-    if type(m) == v:t_string && m !=# ''
-      model = m
+    var current_model = ModelText(assistant.model)
+    if current_model !=# ''
+      model = current_model
     endif
   elseif event_type ==# 'session.text.started' || event_type ==# 'session.text.delta' || event_type ==# 'session.text.ended'
     ApplyOrdinal(data, 'text', event_type)
@@ -442,6 +450,12 @@ def IngestMessage(item: dict<any>)
   message.time = get(info, 'time', get(message, 'time', {}))
   message.agent = GetString(info, 'agent')
   message.model = get(info, 'model', v:null)
+  if kind ==# 'assistant'
+    var snapshot_model = ModelText(message.model)
+    if snapshot_model !=# ''
+      model = snapshot_model
+    endif
+  endif
   message.error = get(info, 'error', v:null)
   message.finish = get(info, 'finish', '')
   message.description = GetString(info, 'description')
@@ -460,6 +474,16 @@ def IngestMessage(item: dict<any>)
       IngestPart(message, part, ordinals)
     endif
   endfor
+
+  # Snapshot user messages carry their text in parts, not in info.text.
+  if message.kind ==# 'user' && get(message, 'text', '') ==# ''
+    for part in message.parts
+      if part.kind ==# 'text' && part.text !=# ''
+        message.text = part.text
+        break
+      endif
+    endfor
+  endif
 enddef
 
 def IngestPart(message: dict<any>, part: dict<any>, ordinals: dict<number>)
@@ -660,6 +684,62 @@ def Touch()
       util.Log('error', 'state listener failed: ' .. util.ExceptionText())
     endtry
   endfor
+enddef
+
+def HandledEvent(event_type: string): bool
+  return index([
+    'session.step.started',
+    'session.step.ended',
+    'session.step.failed',
+    'session.text.started',
+    'session.text.delta',
+    'session.text.ended',
+    'session.reasoning.started',
+    'session.reasoning.delta',
+    'session.reasoning.ended',
+    'session.tool.input.started',
+    'session.tool.input.delta',
+    'session.tool.input.ended',
+    'session.tool.called',
+    'session.tool.progress',
+    'session.tool.success',
+    'session.tool.failed',
+    'session.inbox.enqueued',
+    'session.synthetic',
+    'session.instructions.updated',
+    'session.revert.committed',
+    'message.updated',
+    'message.removed',
+    'message.part.updated',
+    'message.part.delta',
+    'message.part.removed',
+  ], event_type) >= 0
+enddef
+
+# Accept both the flat model strings used by the delta events and the
+# providerID/modelID dictionaries found in snapshots.
+def ModelText(value: any): string
+  if type(value) == v:t_string
+    return value
+  endif
+  if type(value) == v:t_dict
+    var provider = GetString(value, 'providerID')
+    if provider ==# ''
+      provider = GetString(value, 'provider')
+    endif
+    var name = GetString(value, 'modelID')
+    if name ==# ''
+      name = GetString(value, 'model')
+    endif
+    if name ==# ''
+      name = GetString(value, 'id')
+    endif
+    if provider !=# '' && name !=# ''
+      return provider .. '/' .. name
+    endif
+    return name
+  endif
+  return ''
 enddef
 
 def GetString(dict: dict<any>, key: string): string

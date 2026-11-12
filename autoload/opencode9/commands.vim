@@ -8,6 +8,7 @@ import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/health.vim' as health
 import autoload 'opencode9/prompt.vim' as prompt
 import autoload 'opencode9/server.vim' as server
+import autoload 'opencode9/sessions.vim' as sessions
 import autoload 'opencode9/state.vim' as state
 import autoload 'opencode9/ui/panel.vim' as panel
 import autoload 'opencode9/util.vim' as util
@@ -18,7 +19,7 @@ const COMMANDS: dict<dict<any>> = {
   health: {phase: 'P0', usage: 'health', description: 'Run environment checks', implemented: true},
   config: {phase: 'P0', usage: 'config [path|validate]', description: 'Show or validate configuration', implemented: true},
   server: {phase: 'P1', usage: 'server [status|connect|disconnect|start|stop]', description: 'Manage the OpenCode connection', implemented: true},
-  session: {phase: 'P4', usage: 'session [list|new|open|rename|delete|fork]', description: 'Manage conversations', implemented: false},
+  session: {phase: 'P4', usage: 'session [list|pick|new|open|rename|delete|fork]', description: 'Manage conversations', implemented: true},
   prompt: {phase: 'P2', usage: 'prompt [text]', description: 'Send a prompt with context placeholders', implemented: true},
   ask: {phase: 'P2', usage: 'ask [text]', description: 'Prompt for text and send it', implemented: true},
   operator: {phase: 'P2', usage: 'operator', description: 'Send the selected range', implemented: true},
@@ -38,7 +39,7 @@ const ARG_COMPLETIONS: dict<list<string>> = {
   prompt: ['@this', '@buffer', '@buffers', '@visible', '@quickfix', '@marks', '@diagnostics'],
   ask: ['@this', '@buffer', '@buffers', '@visible', '@quickfix', '@marks', '@diagnostics'],
   server: ['status', 'connect', 'disconnect', 'start', 'stop'],
-  session: ['list', 'new', 'open', 'rename', 'delete', 'fork'],
+  session: ['list', 'pick', 'new', 'open', 'rename', 'delete', 'fork'],
   open: ['input', 'output', 'panel'],
   close: ['input', 'output', 'panel', 'diff'],
   permission: ['accept', 'accept_all', 'deny'],
@@ -67,6 +68,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       ShowConfig(rest)
     elseif name ==# 'server'
       Server(rest)
+    elseif name ==# 'session'
+      Session(rest, bang)
     elseif name ==# 'prompt'
       PromptCommand(rest, range)
     elseif name ==# 'ask'
@@ -241,6 +244,34 @@ def Server(rest: string)
     StopServer()
   else
     util.EchoError('unknown server command "' .. argument .. '"; try :Opencode help')
+  endif
+enddef
+
+def Session(rest: string, bang: bool)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S\+')
+  var tail = trim(substitute(argument, '^\S\+\s*', '', ''))
+  if action ==# '' || action ==# 'list'
+    sessions.List()
+  elseif action ==# 'pick'
+    sessions.Pick()
+  elseif action ==# 'new'
+    sessions.New(tail)
+  elseif action ==# 'open'
+    sessions.Open(tail)
+  elseif action ==# 'rename'
+    var id = matchstr(tail, '^\S\+')
+    var title = trim(substitute(tail, '^\S\+\s*', '', ''))
+    sessions.Rename(id, title)
+  elseif action ==# 'delete'
+    sessions.Delete(tail, bang)
+  elseif action ==# 'fork'
+    sessions.Fork(tail)
+  elseif action ==# 'current'
+    var id = sessions.Current()
+    echomsg 'opencode9: session ' .. (id ==# '' ? 'none' : id)
+  else
+    util.EchoError('unknown session command "' .. action .. '"; try :Opencode session list')
   endif
 enddef
 
