@@ -4,7 +4,29 @@ vim9script
 
 import autoload 'opencode9/util.vim' as util
 
-# Emit a decoded server event to User autocmds and the public state variables.
+var listeners: list<func> = []
+
+# Register a callback invoked with every decoded event. Listeners must not
+# throw; failures are logged and do not stop other listeners.
+export def AddListener(Callback: func)
+  listeners->add(Callback)
+enddef
+
+export def RemoveListener(Callback: func)
+  var kept: list<func> = []
+  for listener in listeners
+    if listener != Callback
+      kept->add(listener)
+    endif
+  endfor
+  listeners = kept
+enddef
+
+export def ListenerCount(): number
+  return len(listeners)
+enddef
+
+# Emit a decoded server event to listeners, User autocmds and public state.
 export def Emit(event: any)
   var event_type = Type(event)
   g:opencode9_event = event
@@ -13,6 +35,15 @@ export def Emit(event: any)
     util.Log('warn', 'received an event without a type')
     return
   endif
+
+  for listener in listeners
+    try
+      call(listener, [event])
+    catch
+      util.Log('error', 'event listener failed: ' .. util.ExceptionText())
+    endtry
+  endfor
+
   var pattern = 'OpencodeEvent:' .. event_type
   if exists('#User#' .. pattern)
     execute 'doautocmd <nomodeline> User ' .. pattern
