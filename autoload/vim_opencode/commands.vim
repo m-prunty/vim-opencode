@@ -61,7 +61,7 @@ const ARG_COMPLETIONS: dict<list<string>> = {
   close: ['input', 'output', 'panel', 'diff'],
   permission: ['accept', 'accept_all', 'deny'],
   context: ['show', 'clear'],
-  debug: ['on', 'off', 'dump'],
+  debug: ['on', 'off', 'dump', 'status'],
 }
 
 # Dispatch :Opencode arguments. Errors are reported instead of escaping.
