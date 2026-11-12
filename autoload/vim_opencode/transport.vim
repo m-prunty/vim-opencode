@@ -337,6 +337,7 @@ def Finish(key: string, exit_status: number)
     if exit_status == 0
       Invoke(req.on_close, [])
     else
+      req.cancelled = true
       Invoke(req.on_error, [FormatError(req, exit_status, 0, ''), exit_status, 0])
     endif
     return
