@@ -8,6 +8,7 @@ export const Defaults: dict<any> = {
   server_url: '',
   server_command: [],
   auto_start: true,
+  protocol: 'v2',
   directory: '',
   request_timeout_ms: 30000,
   stream_timeout_ms: 120000,
@@ -107,6 +108,10 @@ export def Validate(config: dict<any>): bool
 
   if config.server_url !=# '' && config.server_url !~# '^https\?://'
     Fail('server_url must start with http:// or https://')
+  endif
+
+  if type(config.protocol) != v:t_string || index(['v1', 'v2'], config.protocol) < 0
+    Fail('protocol must be v1 or v2')
   endif
 
   RequirePositiveNumber(config, 'request_timeout_ms')
