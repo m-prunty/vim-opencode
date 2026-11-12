@@ -82,8 +82,8 @@ export const Defaults: dict<any> = {
 # Merge user settings into the defaults, validate them and install the result.
 export def Setup(user: dict<any>): dict<any>
   var merged = DeepMerge(deepcopy(Defaults), user)
-  Validate(merged)
   Normalize(merged)
+  Validate(merged)
   g:vim_opencode_config = merged
   return merged
 enddef
@@ -194,10 +194,15 @@ enddef
 
 def ValidateKeymaps(value: any)
   RequireDict(value, 'keymaps')
+  var seen: dict<string> = {}
   for [action, mapping] in items(value)
     if type(mapping) != v:t_string
       Fail('keymaps.' .. action .. ' must be a string')
     endif
+    if has_key(seen, mapping)
+      Fail('keymaps.' .. action .. ' conflicts with keymaps.' .. seen[mapping] .. ' (both map to "' .. mapping .. '")')
+    endif
+    seen[mapping] = action
   endfor
 enddef
 
@@ -244,9 +249,7 @@ enddef
 
 def ValidateGui(value: any)
   RequireDict(value, 'gui')
-  if type(get(value, 'popup_border', v:null)) != v:t_string
-    Fail('gui.popup_border must be a string')
-  endif
+  RequireString(value, 'popup_border', 'gui')
   if index(['rounded', 'single', 'none'], value.popup_border) < 0
     Fail('gui.popup_border must be rounded, single or none')
   endif
