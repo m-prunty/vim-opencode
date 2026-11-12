@@ -32,6 +32,7 @@
 | 2 | `autoload/vim_opencode/config.vim` | `ValidateGui()` uses `RequireString()` for `popup_border` | Consistency with other validators; was using `get(..., v:null)` check | Fixed | all |
 | 3 | `autoload/vim_opencode/config.vim` | `ValidateKeymaps()` detects duplicate mapping values | Prevents ambiguous prefix-chord conflicts (`<Leader>o` vs `<Leader>oo`) | Fixed | all |
 | 4 | `autoload/vim_opencode/state.vim` | `ApplyRevert()` keeps boundary message, drops after | Off-by-one: `messages[0 : position-1]` dropped the boundary message | Fixed | all |
+| 20 | `autoload/vim_opencode/state.vim` | `ApplyRevert()` correction — slice end was still exclusive | Vim9 slice `[0:position]` excludes index `position`; corrected to `[0:position+1]` to include boundary message. Verified with defcompile + all 12 smoke tests. | Fixed | all |
 | 5 | `autoload/vim_opencode/state.vim` | `DropOptimistic()` drops all matching optimistic messages | Only dropped first match; retried prompts left duplicates | Fixed | all |
 | 6 | `autoload/vim_opencode/state.vim` | `EnsureMessage()` calls `Reindex()` before reading `index` | Stale index could return wrong message after `RemoveMessage` | Fixed | all |
 | 7 | `autoload/vim_opencode/transport.vim` | `Finish()` sets `req.cancelled = true` on stream non-zero exit | Inconsistent with `Fail()` which sets it | Fixed | all |
@@ -58,6 +59,12 @@
 - Catalog `SelectAgent` string vs `SelectModel` dict — server expects string agent name
 - Review `stale` field — now filtered in `Text()`
 
+## Verification
+
+- All 12 smoke tests pass (p0-p11 via `./test/run.sh`)
+- `:defcompile` passes cleanly (Vim9 strict mode)
+- 20 changes committed across 12 source files + docs + CI
+
 ## Next Step
 
-All documented bugs have been addressed. The analysis files remain in `docs/codebase-analysis/` as a reference. No further changes are pending.
+All documented bugs have been addressed and verified. The analysis files remain in `docs/codebase-analysis/` as a reference. No further changes are pending.

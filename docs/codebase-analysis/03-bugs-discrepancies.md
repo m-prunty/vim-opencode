@@ -21,8 +21,8 @@
 
 ### Fix 4: `ApplyRevert()` keeps boundary message, drops after
 - **File**: `autoload/vim_opencode/state.vim`, `ApplyRevert()`
-- **Problem**: `messages[0 : position - 1]` dropped the boundary message (off-by-one).
-- **Fix**: Changed to `messages[0 : position]` to keep up to and including boundary.
+- **Problem**: `messages[0 : position - 1]` dropped the boundary message (off-by-one). First fix used `messages[0 : position]` which still excluded the boundary (Vim9 slice end is exclusive).
+- **Fix**: Changed to `messages[0 : position + 1]` to keep up to and including boundary. Vim9 slice `[0:position+1]` is exclusive of the end, so it includes index `position`.
 
 ### Fix 5: `DropOptimistic()` drops all matching optimistic messages
 - **File**: `autoload/vim_opencode/state.vim`, `DropOptimistic()`

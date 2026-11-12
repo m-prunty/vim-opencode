@@ -306,10 +306,22 @@ ConnectServer() -> discovery.Connect({on_success, on_error})
         v
 discovery.Connect(callbacks)
         |
-        +-- configured URL exists -> TryCandidates([configured], 0, callbacks, false)
-        +-- registrations exist   -> TryCandidates(registrations, 0, callbacks, false)
-        +-- has start command     -> Start() -> BeginPoll(callbacks)
-        +-- else                  -> on_error('no OpenCode server found')
+        +-- connecting == true -> on_error('a discovery is already in progress'); return
+        |
+        v
+connecting = true
+        |
+        v
+Wrap callbacks via ConnectDoneSuccess / ConnectDoneError helpers
+  (these reset connecting = false when the async chain resolves)
+        |
+        v
+TryCandidates(wrapped_candidates, 0, wrapped_callbacks, false)
+        |
+        +-- configured URL exists -> TryCandidates([configured], 0, wrapped, false)
+        +-- registrations exist   -> TryCandidates(registrations, 0, wrapped, false)
+        +-- has start command     -> Start() -> BeginPoll(wrapped)
+        +-- else                  -> connecting = false; on_error('no OpenCode server found')
         |
         v
 TryCandidates(candidates, index, callbacks, polling)
@@ -338,7 +350,26 @@ server.SetCurrent(conn)
 Subscribe(conn)  [active.Subscribe]
   |
   v
-on_success(conn, info)
+ConnectDoneSuccess(conn, info)  [connecting = false; invoke original on_success]
+
+### Discovery completion helpers
+```
+ConnectDoneSuccess(conn, info, cb)
+  |
+  v
+connecting = false
+  |
+  v
+Invoke(cb.on_success, [conn, info])
+
+ConnectDoneError(message, cb)
+  |
+  v
+connecting = false
+  |
+  v
+Invoke(cb.on_error, [message])
+```
 ```
 
 ### SSE Stream Flow
