@@ -128,9 +128,43 @@
 | G | `autoload/vim_opencode/catalog.vim` | `SelectAgent` string vs `SelectModel` dict | Server expects string agent name |
 | H | `autoload/vim_opencode/review.vim` | `stale` field | Now filtered in `Text()` |
 
+## UI / Popup Export Issues
+
+### Fix 20: Export `CurrentPopupId`/`Line`/`Offset`/`CurrentPopup`
+- **File**: `autoload/vim_opencode/ui/popup.vim`
+- **Problem**: `CurrentPopupId()`, `CurrentPopupLine()`, `CurrentPopupOffset()` were defined as non-exported `def`s but called from `palette.vim`, causing `E1049: Item not exported in script` at runtime.
+- **Fix**: Added `export` to all four functions.
+
+## UI / Popup Lambda Issues (Vim9 compatibility)
+
+### Fix 21: `ListPopup` empty block-body lambda
+- **File**: `autoload/vim_opencode/catalog.vim`, `ListPopup()`
+- **Problem**: `callback: (sel: string) => {}` uses a block-body lambda, which is not valid in Vim9 (only expression bodies are allowed). Caused `E488: Trailing characters` when running `:Opencode command list`.
+- **Fix**: Changed to `callback: (sel: string) => 0`.
+
+### Fix 22: `ShowPicker` block-body lambda
+- **File**: `autoload/vim_opencode/catalog.vim`, `ShowPicker()`
+- **Problem**: Block-body lambda with multi-statement body is not valid in Vim9. Caused `E488` when running `:Opencode model pick`/`:Opencode agent pick`.
+- **Fix**: Replaced with `CatalogPickerSelect(kind, items, sel)` helper function called via expression-body lambda.
+
+### Fix 23: `PrintList` and `ShowPicker` block-body lambdas
+- **File**: `autoload/vim_opencode/sessions.vim`
+- **Problem**: Block-body lambdas in `PrintList()` and `ShowPicker()` popup callbacks. Caused `E488` when running `:Opencode session list`/`:Opencode session pick`.
+- **Fix**: Replaced with `SessionsPickerSelect(sel)` helper function called via expression-body lambda.
+
+### Fix 24: `Ask` block-body lambdas
+- **File**: `autoload/vim_opencode/permissions.vim`, `Ask()`
+- **Problem**: Two block-body lambdas (main callback and nested permission reply callback). Caused `E488` when running `:Opencode permission ask`.
+- **Fix**: Replaced with `PermissionsAskSelect()`, `PermissionsAskPermission()`, `PermissionsAskPermissionReply()` helper functions.
+
+### Fix 25: Palette block-body lambdas
+- **File**: `autoload/vim_opencode/ui/palette.vim`
+- **Problem**: Block-body lambdas in `Palette()` callback/cancel and empty block-body lambda in `PalettePreview()`. Caused `E488` when running `:Opencode palette`.
+- **Fix**: Replaced callback with `g:PaletteRunSelection()` call, cancel with `funcref('g:PaletteCancel')`, added `g:PaletteCancel()` helper, replaced empty lambda with `(sel: string) => 0`.
+
 ## Summary
 
-**19 fixes applied** across 12 files:
+**25 fixes applied** across 17 files:
 - 4 configuration/validation fixes
 - 3 session/state fixes
 - 1 transport fix
@@ -140,6 +174,7 @@
 - 2 review fixes
 - 1 test fix
 - 1 command completion fix
+- 5 Vim9 lambda/export fixes
 - 4 documentation/CI fixes
 
 **8 items intentionally not fixed** (documented above).

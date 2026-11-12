@@ -48,6 +48,11 @@
 | 17 | `doc/vim-opencode.txt` | Fixed duplicate section 8 → section 9 for FUNCTIONS | Contents table said 9 but body said 8 | Fixed | all |
 | 18 | `doc/vim-opencode.txt` | Updated phase description text | Said phase-marked commands are "not implemented yet" but they are | Fixed | all |
 | 19 | `.github/workflows/ci.yml` | Added `:defcompile` step to CI | FEATURES.md documented defcompile in CI but it wasn't running | Fixed | all |
+| 20 | `autoload/vim_opencode/ui/popup.vim` | Export CurrentPopupId/Line/Offset/CurrentPopup | Called from palette.vim but not exported, causing E1049 at runtime | Fixed | all |
+| 21 | `autoload/vim_opencode/catalog.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies, not block bodies; caused E488 on model/agent/command list | Fixed | all |
+| 22 | `autoload/vim_opencode/sessions.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies; caused E488 on session list/pick | Fixed | all |
+| 23 | `autoload/vim_opencode/permissions.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies; caused E488 on permission ask | Fixed | all |
+| 24 | `autoload/vim_opencode/ui/palette.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies; caused E488 on palette | Fixed | all |
 
 *Not fixed (intentional behavior or low risk):*
 - `DeepMerge` non-dict override — working as designed, caught by validation
@@ -63,7 +68,7 @@
 
 - All 12 smoke tests pass (p0-p11 via `./test/run.sh`)
 - `:defcompile` passes cleanly (Vim9 strict mode)
-- 20 changes committed across 12 source files + docs + CI
+- 25 changes committed across 17 source files + docs + CI
 
 ## Next Step
 
