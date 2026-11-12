@@ -40,6 +40,8 @@ export def Report(): list<string>
   lines->add(ModuleStatus('transport', 'autoload/opencode9/transport.vim', 'P1'))
   lines->add(ModuleStatus('discovery', 'autoload/opencode9/discovery.vim', 'P1'))
   lines->add(ModuleStatus('prompt', 'autoload/opencode9/prompt.vim', 'P2'))
+  lines->add(ModuleStatus('state', 'autoload/opencode9/state.vim', 'P3'))
+  lines->add(ModuleStatus('render', 'autoload/opencode9/ui/render.vim', 'P3'))
   lines->add(ModuleStatus('panel', 'autoload/opencode9/ui/panel.vim', 'P3'))
 
   var doc = globpath(&runtimepath, 'doc/opencode9.txt', true, true)
