@@ -92,10 +92,39 @@ export def Open()
   if draft !=# ''
     SetInput(draft)
   endif
+  # Show the current server/session/model/environment info at the top of
+  # the transcript when the panel opens.
+  RenderInfo()
   Flush()
   FocusInput()
   EnsureSessionAsync()
   events.EmitLocal('panel.opened', {sessionID: state.SessionId()})
+enddef
+
+# Render a header line summarizing the active server, session, model and
+# directory at the top of the transcript.
+def RenderInfo()
+  var status = server.Status()
+  var session = state.SessionId()
+  var model = state.Model()
+  var lines: list<string> = []
+  lines->add('# OpenCode')
+  if status.connected
+    lines->add('  server: ' .. status.url)
+    lines->add('  version: ' .. (status.version ==# '' ? 'unknown' : status.version))
+    lines->add('  directory: ' .. status.directory)
+  else
+    lines->add('  server: not connected')
+  endif
+  lines->add('  session: ' .. (session ==# '' ? 'none' : session))
+  lines->add('  model: ' .. (model ==# '' ? 'unknown' : model))
+  lines->add('  commands: :Opencode toggle | :Opencode ask <text> | :Opencode prompt <text>')
+  lines->add('')
+  setbufvar(output_buf, '&modifiable', v:true)
+  setbufvar(output_buf, '&readonly', v:false)
+  setbufline(output_buf, 1, lines)
+  setbufvar(output_buf, '&modifiable', v:false)
+  setbufvar(output_buf, '&readonly', v:true)
 enddef
 
 export def Close()

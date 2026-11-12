@@ -9,6 +9,7 @@ vim9script
 import autoload 'opencode9/util.vim' as util
 
 var session_id = ''
+var model = ''
 var messages: list<dict<any>> = []
 var index: dict<number> = {}
 var version = 0
@@ -17,6 +18,10 @@ var listeners: list<func> = []
 
 export def SessionId(): string
   return session_id
+enddef
+
+export def Model(): string
+  return model
 enddef
 
 export def Version(): number
@@ -53,6 +58,7 @@ enddef
 # Forget everything and optionally start a new session.
 export def Reset(new_session: string = '')
   session_id = new_session
+  model = ''
   messages = []
   index = {}
   Touch()
@@ -144,6 +150,10 @@ export def Apply(event: any): bool
     var assistant = EnsureMessage(GetString(data, 'assistantMessageID'), 'assistant')
     assistant.agent = GetString(data, 'agent')
     assistant.model = get(data, 'model', v:null)
+    var m = get(data, 'model', v:null)
+    if type(m) == v:t_string && m !=# ''
+      model = m
+    endif
   elseif event_type ==# 'session.text.started' || event_type ==# 'session.text.delta' || event_type ==# 'session.text.ended'
     ApplyOrdinal(data, 'text', event_type)
   elseif event_type ==# 'session.reasoning.started' || event_type ==# 'session.reasoning.delta' || event_type ==# 'session.reasoning.ended'
