@@ -31,7 +31,7 @@ implementation plan and `doc/opencode9.txt` for user documentation.
 
 - Vim 9.1 with `+job`, `+channel`, `+timers` and `+textprop`.
 - `curl` on `PATH` for HTTPS and SSE transport.
-- An OpenCode server exposing the V2 API (for later phases).
+- An OpenCode server exposing the OpenCode V2 HTTP and SSE APIs.
 
 ## Installation
 
