@@ -283,18 +283,10 @@ def ApplyStatusline()
   if output_win <= 0 || !win_id2win(output_win)
     return
   endif
-  var pstate = StatuslineState()
-  var hl = 'VimOpencodeMuted'
-  if pstate ==# 'connected'
-    hl = 'VimOpencodeInfo'
-  elseif pstate ==# 'thinking'
-    hl = 'VimOpencodeReasoning'
-  elseif pstate ==# 'error'
-    hl = 'VimOpencodeError'
-  endif
   var cur_win = win_getid()
   win_gotoid(output_win)
-  execute 'setlocal statusline=%#' .. hl .. '# OpenCode %{StateLabel()} ' .. '%#StatusLine#'
+  var sl = 'OpenCode ' .. StateLabel()
+  execute 'setlocal statusline=' .. escape(sl, ' #')
   if cur_win != output_win && win_id2win(cur_win)
     win_gotoid(cur_win)
   endif

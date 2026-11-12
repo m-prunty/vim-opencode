@@ -118,7 +118,7 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
     elseif name ==# 'close'
       panel.CloseTarget(trim(rest))
     elseif name ==# 'palette'
-      palette.Palette()
+      call palette.Palette({})
     elseif name ==# 'debug'
       DebugCommand(rest)
     elseif has_key(COMMANDS, name)

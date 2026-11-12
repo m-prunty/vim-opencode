@@ -45,6 +45,7 @@ export const Defaults: dict<any> = {
     diff_accept: '<Leader>oda',
     diff_reject: '<Leader>odr',
     command_list: '<Leader>ocl',
+    palette: '<Leader>ocp',
   },
   gui: {
     popup_border: 'rounded',

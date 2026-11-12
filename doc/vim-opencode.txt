@@ -9,9 +9,10 @@ CONTENTS                                                     *vim-opencode-conte
   4. Configuration ....................... |vim-opencode-configuration|
   5. Events .............................. |vim-opencode-events|
   6. Panel ............................... |vim-opencode-panel|
-  7. Sessions ............................ |vim-opencode-sessions|
-  8. Functions ........................... |vim-opencode-functions|
-  9. Development ......................... |vim-opencode-development|
+  7. GUI ................................. |vim-opencode-gui|
+  8. Sessions ............................ |vim-opencode-sessions|
+  9. Functions ........................... |vim-opencode-functions|
+  10. Development ........................ |vim-opencode-development|
 
 ==============================================================================
 1. INTRODUCTION                                             *vim-opencode-introduction*
@@ -158,8 +159,37 @@ g:vim_opencode_config = {
     health: '<Leader>oH',
     prompt: '<Leader>op',
     ask: '<Leader>oa',
-    operator: '<Leader>oo',
+    operator: '<Leader>or',
     toggle: '<Leader>ot',
+    open: '<Leader>oo',
+    explain: '<Leader>oe',
+    session_list: '<Leader>osl',
+    session_pick: '<Leader>osp',
+    session_new: '<Leader>osn',
+    session_open: '<Leader>oso',
+    model_list: '<Leader>oml',
+    model_pick: '<Leader>omp',
+    agent_list: '<Leader>ogl',
+    agent_pick: '<Leader>ogp',
+    server_connect: '<Leader>osc',
+    server_status: '<Leader>oss',
+    server_disconnect: '<Leader>osd',
+    permission_list: '<Leader>oql',
+    permission_accept: '<Leader>oqa',
+    permission_deny: '<Leader>oqd',
+    diff_open: '<Leader>odo',
+    diff_accept: '<Leader>oda',
+    diff_reject: '<Leader>odr',
+    palette: '<Leader>ocp',
+    command_list: '<Leader>ocl',
+  },
+  gui: {
+    popup_border: 'rounded',
+    popup_title: v:true,
+    footer_hint: v:true,
+    preview_width: 60,
+    colors: v:true,
+    default_position: 'right',
   },
   server: {
     username: '',
@@ -212,6 +242,18 @@ server                  username, password and extra HTTP headers.
 context                 Limits and defaults for captured editor context.
 panel                   Layout and render batching settings.
 diff                    Edit review behavior.
+gui                     Popups, borders and status bar settings.
+
+                                                          *gui-config-keys*
+gui.popup_border        rounded, single or none. Default rounded when
+                         &ambiwidth is single, else single.
+gui.popup_title         Show a title bar on popups.
+gui.footer_hint         Show a hint footer on popups.
+gui.preview_width       Width of the side preview popup.
+gui.colors              Enable highlight-group-derived colors.
+gui.default_position    right, horizontal or popup. Where :Opencode open
+                         and :Opencode toggle place the panel; right (a
+                         vertical split on the right) is the default.
 
 ==============================================================================
 5. EVENTS                                                         *vim-opencode-events*
@@ -299,7 +341,51 @@ editor never blocks while tokens stream in. Scrolling up is preserved: new
 content only jumps to the bottom when the view was already at the bottom.
 
 ==============================================================================
-7. SESSIONS                                                   *vim-opencode-sessions*
+7. GUI                                                     *vim-opencode-gui*
+
+The GUI layer adds styled popups, an interactive command palette, preview
+windows and a show/peek key, modeled on fzf.vim. All colors are derived from
+Vim highlight groups (never hard-coded ANSI) and honor |termguicolors|.
+
+                                                               *vim-opencode-palette*
+:Opencode palette               Open the interactive command palette.
+                                Lists every implemented :Opencode command plus
+                                direct sub-actions (sessions, models, agents,
+                                server, permissions, diff, tabs). Navigate with
+                                j/k or <Up>/<Down>, filter with /, run with
+                                <Enter>, preview with <C-P>, quit with <C-Q>.
+
+                                                               *vim-opencode-pickers*
+Styled pickers (replacing plain :echomsg / inputlist() lists) are used for
+:Opencode model pick, :Opencode agent pick, :Opencode command pick,
+:Opencode session pick and :Opencode permission list. Each shows a bordered
+titled popup with a footer hint (Enter pick | C-P preview | C-Q quit).
+
+                                                               *vim-opencode-preview*
+<C-P> in a picker or the palette opens a side preview popup showing context
+for the highlighted entry (kind, name, description, usage).
+
+                                                               *vim-opencode-peek*
+<C-O> (show/peek) runs the highlighted entry's action in the editing window
+without closing the popup, so you can inspect a session, model or command
+and keep browsing.
+
+                                                               *vim-opencode-panel-scroll*
+Scrolling works in the transcript/output window and in popups:
+<C-e>/<C-y> scroll one line, <C-d>/<C-u> and <PageDown>/<PageUp> scroll a
+page.
+
+                                                               *vim-opencode-panel-right*
+:Opencode open and :Opencode toggle open the panel to the right of the
+screen (vertical split) by default. Set gui.default_position to 'horizontal'
+to use panel.position, or 'popup' for a floating window.
+
+All popup borders use |gui.popup_border| ('rounded' by default when
+|&ambiwidth| is single, else 'single'). Popups fall back to inputlist()
+when +popupwin is unavailable.
+
+==============================================================================
+8. SESSIONS                                                   *vim-opencode-sessions*
 
 Sessions are listed per working directory. The plugin keeps a small cache so
 commands can refer to a session by its full id, a unique id prefix, or the

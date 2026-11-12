@@ -3,8 +3,8 @@ vim9script
 # Interactive command palette modeled on fzf.vim's spec-dict pattern.
 #
 # Opens a single bordered popup listing every :Opencode command and
-# sub-action. Supports as-you-type filtering (`/`), preview (C-P), help
-# (C-H), and quit (C-Q). Enter runs the highlighted command.
+# sub-action. Supports filtering (`/`), preview (C-P), help (C-H),
+# and quit (C-Q). Enter runs the highlighted command.
 
 import autoload 'vim_opencode/commands.vim' as commands
 import autoload 'vim_opencode/ui/popup.vim' as popup
@@ -13,7 +13,7 @@ import autoload 'vim_opencode/util.vim' as util
 var palette_state: dict<any> = {}
 
 # Build the flattened source of all commands + sub-actions.
-def Source(): list<dict<any>>
+export def Source(): list<dict<any>>
   var out: list<dict<any>> = []
   var table = commands.Table()
   for [name, meta] in items(table)
@@ -59,46 +59,7 @@ def FormatEntry(entry: dict<any>): string
   return label
 enddef
 
-# Run the palette. filter: optional substring filter applied to label/desc.
-export def Palette(filter: string = '')
-  palette_state = {filter: filter, source: Source(), idx: 1}
-  var items = Filtered()
-  if empty(items)
-    util.EchoInfo('no commands available')
-    return
-  endif
-  var lines: list<string> = []
-  var i = 1
-  for entry in items
-    lines->add(printf('[%d] %s', i, FormatEntry(entry)))
-    i += 1
-  endfor
-  var footer = 'Enter run | C-P preview | C-H help | / filter | C-Q quit'
-  popup.Run({
-    \ items: lines,
-    \ title: 'OpenCode palette',
-    \ border: 'rounded',
-    \ width: 74,
-    \ height: min([len(lines) + 4, 22]),
-    \ callback: (selection: string) => {
-      PaletteRunSelection(selection)
-    },
-    \ cancel: () => {
-      palette_state = {}
-    },
-    \ footer: footer,
-    \ keymaps: {
-      \ '/': funcref('PaletteStartFilter'),
-      \ 'C-h': funcref('PaletteHelp'),
-      \ 'C-p': funcref('PalettePreview'),
-      \ 'j': funcref('PaletteNext'),
-      \ 'k': funcref('PalettePrev'),
-      \ '<Down>': funcref('PaletteNext'),
-      \ '<Up>': funcref('PalettePrev'),
-      \ },
-    \ })
-enddef
-
+# Filter the source by the current filter string.
 def Filtered(): list<dict<any>>
   var f = tolower(get(palette_state, 'filter', ''))
   var out: list<dict<any>> = []
@@ -114,8 +75,52 @@ def Filtered(): list<dict<any>>
   return out
 enddef
 
-function! PaletteRunSelection(selection: string) abort
-  var m = matchstr(a:selection, '^\\[\(\d\+\)\\]')
+# Run the palette. info: dict with optional 'filter' string.
+export def Palette(info: dict<any>)
+  var filter = get(info, 'filter', '')
+  palette_state = {filter: filter, source: Source(), idx: 1}
+  var items = Filtered()
+  if empty(items)
+    util.EchoInfo('no commands available')
+    return
+  endif
+  var lines: list<string> = []
+  var i = 1
+  for entry in items
+    lines->add(printf('[%d] %s', i, FormatEntry(entry)))
+    i += 1
+  endfor
+  var footer = 'Enter run | C-P preview | C-H help | / filter | C-Q quit'
+  popup.Run({
+    \ spec: {
+      \ items: lines,
+      \ title: 'OpenCode palette',
+      \ border: 'rounded',
+      \ width: 74,
+      \ height: min([len(lines) + 4, 22]),
+      \ callback: (sel) => {
+        PaletteRunSelection({'selection': sel})
+      },
+      \ cancel: () => {
+        palette_state = {}
+      },
+      \ footer: footer,
+      \ keymaps: {
+        \ '/': funcref('g:PaletteStartFilter'),
+        \ 'C-h': funcref('g:PaletteHelp'),
+        \ 'C-p': funcref('g:PalettePreview'),
+        \ 'j': funcref('g:PaletteNext'),
+        \ 'k': funcref('g:PalettePrev'),
+        \ '<Down>': funcref('g:PaletteNext'),
+        \ '<Up>': funcref('g:PalettePrev'),
+        \ },
+      \ },
+    \ })
+enddef
+
+def g:PaletteRunSelection(info: dict<any>)
+  var selection = get(info, 'selection', '')
+  var m = matchstr(selection, '^\\[\(\d\+\)\\]')
   if m ==# ''
     return
   endif
@@ -133,20 +138,20 @@ function! PaletteRunSelection(selection: string) abort
   endif
 enddef
 
-function! PaletteStartFilter() abort
+def g:PaletteStartFilter(info: dict<any>)
   var filter = input('filter: ')
   if filter ==# ''
     return
   endif
-  popup.CloseAll()
-  Palette(filter)
+  call popup.CloseAll({})
+  Palette({'filter': filter})
 enddef
 
-function! PaletteHelp() abort
+def g:PaletteHelp(info: dict<any>)
   util.EchoInfo('OpenCode palette: Enter run, C-P preview, C-H help, / filter, C-Q quit')
 enddef
 
-function! PalettePreview() abort
+def g:PalettePreview(info: dict<any>)
   var winid = popup.CurrentPopupId()
   if winid == 0
     return
@@ -171,20 +176,22 @@ function! PalettePreview() abort
     lines->add('usage: :Opencode ' .. usage)
   endif
   popup.Run({
-    \ items: lines,
-    \ title: 'Preview',
-    \ border: 'rounded',
-    \ width: 50,
-    \ height: min([len(lines) + 4, 10]),
-    \ callback: (selection: string) => {},
-    \ footer: 'C-Q close',
+    \ spec: {
+      \ items: lines,
+      \ title: 'Preview',
+      \ border: 'rounded',
+      \ width: 50,
+      \ height: min([len(lines) + 4, 10]),
+      \ callback: (sel) => {},
+      \ footer: 'C-Q close',
+      \ },
     \ })
 enddef
 
-function! PaletteNext() abort
+def g:PaletteNext(info: dict<any>)
   # Navigation handled by popup's inherent line movement; this is a placeholder.
 enddef
 
-function! PalettePrev() abort
+def g:PalettePrev(info: dict<any>)
   # Navigation handled by popup's inherent line movement; this is a placeholder.
 enddef

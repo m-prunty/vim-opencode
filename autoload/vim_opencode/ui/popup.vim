@@ -14,22 +14,11 @@ const DEFAULT_BORDER_CHARS: list<string> = ['╭', '─', '╮', '│', '╯', '
 const SINGLE_BORDER_CHARS: list<string> = ['+', '-', '+', '|', '+', '-', '+', '|']
 
 var open_popups: list<number> = []
-var g:vim_opencode_popup_specs: dict<any> = {}
 
-# Convert a border style name to the value popup_create() accepts.
-def border_name(style: string): any
-  if style ==# 'none'
-    return 'none'
+def EnsureGlobals(): any
+  if !has_key(g:, 'vim_opencode_popup_specs')
+    g:vim_opencode_popup_specs = {}
   endif
-  if style ==# 'single'
-    return SINGLE_BORDER_CHARS
-  endif
-  return DEFAULT_BORDER_CHARS
-enddef
-
-# Look up the merged configuration.
-def GetConfig(): dict<any>
-  return get(g:, 'vim_opencode_config', {})
 enddef
 
 # Build the line buffer for a popup spec. Returns [lines, title_lines,
@@ -41,7 +30,8 @@ def BuildLines(spec: dict<any>): list<any>
   var padding = get(spec, 'padding', 1)
   var items = get(spec, 'items', [])
   var footer = get(spec, 'footer', '')
-  var border = get(spec, 'border', get(GetConfig().gui, 'popup_border', 'rounded'))
+  var cfg = GetConfig()
+  var border = get(spec, 'border', get(cfg.gui, 'popup_border', 'rounded'))
   var border_chars: list<string> = []
   if border ==# 'rounded'
     border_chars = DEFAULT_BORDER_CHARS
@@ -83,6 +73,20 @@ def BuildLines(spec: dict<any>): list<any>
   return [lines, title_lines, border_offset]
 enddef
 
+def GetConfig(): dict<any>
+  return get(g:, 'vim_opencode_config', {})
+enddef
+
+def BorderName(style: string): any
+  if style ==# 'none'
+    return 'none'
+  endif
+  if style ==# 'single'
+    return SINGLE_BORDER_CHARS
+  endif
+  return DEFAULT_BORDER_CHARS
+enddef
+
 # Run a bordered popup list. spec:
 #   items       list<string>  - display lines
 #   title       string        - optional title bar
@@ -98,19 +102,29 @@ enddef
 #   footer      string        - hint line appended under the list
 # Returns the popup id, or -1 when falling back to inputlist().
 export def Run(spec: dict<any>): number
+  call EnsureGlobals()
   if !has('popupwin') || !exists('*popup_create()')
     return RunInputlist(spec)
   endif
 
-  var result = BuildLines(spec)
-  var lines = result[0]
+  var cfg = GetConfig()
+  var border = get(spec, 'border', get(cfg.gui, 'popup_border', 'rounded'))
+  var border_chars = BorderName(border)
+
+  var title = get(spec, 'title', '')
   var width = get(spec, 'width', 60)
   var height = get(spec, 'height', 10)
+  var padding = get(spec, 'padding', 1)
+  var items = get(spec, 'items', [])
+  var footer = get(spec, 'footer', '')
+
+  var result = BuildLines(spec)
+  var lines = result[0]
 
   var winid = popup_create(lines, {
-    \ title: get(spec, 'title', ''),
-    \ border: border_name(border),
-    \ padding: get(spec, 'padding', 1),
+    \ title: title,
+    \ border: border_chars,
+    \ padding: padding,
     \ width: width,
     \ height: height,
     \ row: get(spec, 'row', -1),
@@ -122,11 +136,13 @@ export def Run(spec: dict<any>): number
 
   open_popups->add(winid)
   g:vim_opencode_popup_specs[winid] = spec
-  InstallPopupMappings(winid, spec)
+  call InstallPopupMappings({'winid': winid, 'spec': spec})
   return winid
 enddef
 
-def InstallPopupMappings(winid: number, spec: dict<any>)
+def InstallPopupMappings(info: dict<any>): any
+  var winid = get(info, 'winid', 0)
+  var spec = get(info, 'spec', {})
   var base: dict<any> = {
     \ '<CR>': funcref('VimOpencodePopupSelect'),
     \ '<C-o>': funcref('VimOpencodePopupPeek'),
@@ -149,29 +165,7 @@ def InstallPopupMappings(winid: number, spec: dict<any>)
   call popup_setoptions(winid, {mapping: mapping})
 enddef
 
-function! VimOpencodePopupSelect() abort
-  var winid = CurrentPopup()
-  if winid == 0
-    return
-  endif
-  var spec = get(g:vim_opencode_popup_specs, winid, {})
-  var result = BuildLines(spec)
-  var title_lines = result[1]
-  var border_offset = result[2]
-  var pos = popup_getpos(winid)
-  # popup line is 1-based within the rendered line buffer.
-  var idx = pos.line - title_lines - border_offset
-  var items = get(spec, 'items', [])
-  if idx >= 1 && idx <= len(items)
-    var cb = get(spec, 'callback', v:null)
-    if type(cb) == v:func
-      call(cb, [items[idx - 1]])
-    endif
-  endif
-  VimOpencodePopupCloseById(winid)
-enddef
-
-function! VimOpencodePopupPeek() abort
+def g:VimOpencodePopupSelect()
   var winid = CurrentPopup()
   if winid == 0
     return
@@ -189,9 +183,30 @@ function! VimOpencodePopupPeek() abort
       call(cb, [items[idx - 1]])
     endif
   endif
+  VimOpencodePopupCloseById()
 enddef
 
-function! VimOpencodePopupCloseById() abort
+def g:VimOpencodePopupPeek()
+  var winid = CurrentPopup()
+  if winid == 0
+    return
+  endif
+  var spec = get(g:vim_opencode_popup_specs, winid, {})
+  var result = BuildLines(spec)
+  var title_lines = result[1]
+  var border_offset = result[2]
+  var pos = popup_getpos(winid)
+  var idx = pos.line - title_lines - border_offset
+  var items = get(spec, 'items', [])
+  if idx >= 1 && idx <= len(items)
+    var cb = get(spec, 'callback', v:null)
+    if type(cb) == v:func
+      call(cb, [items[idx - 1]])
+    endif
+  endif
+enddef
+
+def g:VimOpencodePopupCloseById()
   var winid = CurrentPopup()
   if winid == 0
     return
@@ -208,69 +223,50 @@ function! VimOpencodePopupCloseById() abort
   endif
 enddef
 
-function! VimOpencodePopupClose(winid: number, spec: dict) abort
-  VimOpencodePopupCloseById()
+def g:VimOpencodePopupScrollDown()
+  VimOpencodePopupScrollCurrent({'dir': 1})
 enddef
 
-function! VimOpencodePopupScrollDown() abort
-  VimOpencodePopupScrollCurrent(1)
+def g:VimOpencodePopupScrollUp()
+  VimOpencodePopupScrollCurrent({'dir': -1})
 enddef
 
-function! VimOpencodePopupScrollUp() abort
-  VimOpencodePopupScrollCurrent(-1)
+def g:VimOpencodePopupScrollDownPage()
+  VimOpencodePopupScrollCurrent({'dir': 5})
 enddef
 
-function! VimOpencodePopupScrollDownPage() abort
-  VimOpencodePopupScrollCurrent(5)
+def g:VimOpencodePopupScrollUpPage()
+  VimOpencodePopupScrollCurrent({'dir': -5})
 enddef
 
-function! VimOpencodePopupScrollUpPage() abort
-  VimOpencodePopupScrollCurrent(-5)
-enddef
-
-function! VimOpencodePopupScrollCurrent(dir: number) abort
+def g:VimOpencodePopupScrollCurrent(info: dict<any>)
   var winid = CurrentPopup()
   if winid == 0
     return
   endif
+  var dir = get(info, 'dir', 0)
   var pos = popup_getpos(winid)
-  var new_line = max([1, pos.line + a:dir])
+  var new_line = max([1, pos.line + dir])
   call popup_setpos(winid, {line: new_line})
 enddef
 
+def CurrentPopupId(): number
+  call EnsureGlobals()
+  for id in keys(g:vim_opencode_popup_specs)
+    if popup_isvisible(id)
+      return id
+    endif
+  endfor
+  return 0
+enddef
+
 def CurrentPopup(): number
-  for id in keys(g:vim_opencode_popup_specs)
-    if popup_isvisible(id)
-      return id
-    endif
-  endfor
-  return 0
-enddef
-
-# Close all open popups (e.g. when leaving normal context).
-export def CloseAll()
-  for winid in copy(open_popups)
-    if winid > 0 && popup_isvisible(winid)
-      popup_close(winid)
-    endif
-  endfor
-  open_popups = []
-  g:vim_opencode_popup_specs = {}
-enddef
-
-# Return the id of the currently visible popup, or 0.
-export def CurrentPopupId(): number
-  for id in keys(g:vim_opencode_popup_specs)
-    if popup_isvisible(id)
-      return id
-    endif
-  endfor
-  return 0
+  return CurrentPopupId()
 enddef
 
 # Return the 1-based line position within the current popup's rendered buffer,
 # or 0 if no popup is visible.
-export def CurrentPopupLine(): number
+def CurrentPopupLine(): number
   var winid = CurrentPopupId()
   if winid == 0
     return 0
@@ -280,7 +276,7 @@ enddef
 
 # Return the offset (title + border lines) above the first item row for the
 # current popup, or 0 if none.
-export def CurrentPopupOffset(): number
+def CurrentPopupOffset(): number
   var winid = CurrentPopupId()
   if winid == 0
     return 0
@@ -288,6 +284,17 @@ export def CurrentPopupOffset(): number
   var spec = get(g:vim_opencode_popup_specs, winid, {})
   var result = BuildLines(spec)
   return result[1] + result[2]
+enddef
+
+# Close all open popups (e.g. when leaving normal context).
+export def CloseAll(info: dict<any>)
+  for winid in copy(open_popups)
+    if winid > 0 && popup_isvisible(winid)
+      popup_close(winid)
+    endif
+  endfor
+  open_popups = []
+  g:vim_opencode_popup_specs = {}
 enddef
 
 def RunInputlist(spec: dict<any>): number
@@ -303,8 +310,8 @@ def RunInputlist(spec: dict<any>): number
     index += 1
   endfor
   var title = get(spec, 'title', 'OpenCode')
-  var labels: list<string> = [title] + items
-  var choice = inputlist(labels)
+  var prompt = title .. '\n' .. join(labels, "\n")
+  var choice = inputlist(prompt)
   if choice >= 1
     var cb = get(spec, 'callback', v:null)
     if type(cb) == v:func
