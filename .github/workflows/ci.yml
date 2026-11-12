@@ -19,7 +19,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y liblua5.1-dev libperl-dev libpython3-dev \
-            libruby-dev libncurses5-dev libgtk-3-dev libx11-dev libxt-dev
+            ruby-dev libncurses5-dev libgtk-3-dev libx11-dev libxt-dev
           cd /tmp
           wget -q https://github.com/vim/vim/archive/refs/tags/v9.1.0000.tar.gz
           tar xzf v9.1.0000.tar.gz
