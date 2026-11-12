@@ -53,6 +53,7 @@
 | 22 | `autoload/vim_opencode/sessions.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies; caused E488 on session list/pick | Fixed | all |
 | 23 | `autoload/vim_opencode/permissions.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies; caused E488 on permission ask | Fixed | all |
 | 24 | `autoload/vim_opencode/ui/palette.vim` | Replace block-body lambdas with expression bodies | Vim9 lambdas require expression bodies; caused E488 on palette | Fixed | all |
+| 25 | `autoload/vim_opencode/ui/popup.vim` | Type `lines` as `list<string>` for `popup_create` | `var lines = result[0]` where result is `list<any>` made lines type `any`, causing `E714: List required` at runtime. Explicitly typed as `list<string>`. | Fixed | all |
 
 *Not fixed (intentional behavior or low risk):*
 - `DeepMerge` non-dict override — working as designed, caught by validation
@@ -68,7 +69,7 @@
 
 - All 12 smoke tests pass (p0-p11 via `./test/run.sh`)
 - `:defcompile` passes cleanly (Vim9 strict mode)
-- 25 changes committed across 17 source files + docs + CI
+- 26 changes committed across 17 source files + docs + CI
 
 ## Next Step
 

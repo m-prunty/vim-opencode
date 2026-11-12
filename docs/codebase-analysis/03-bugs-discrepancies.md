@@ -135,6 +135,11 @@
 - **Problem**: `CurrentPopupId()`, `CurrentPopupLine()`, `CurrentPopupOffset()` were defined as non-exported `def`s but called from `palette.vim`, causing `E1049: Item not exported in script` at runtime.
 - **Fix**: Added `export` to all four functions.
 
+### Fix 26: `popup.create()` `lines` argument typed as `any` causing E714
+- **File**: `autoload/vim_opencode/ui/popup.vim`, `Run()`
+- **Problem**: `var lines = result[0]` where `result` is `list<any>` (from `BuildLines` return type) made `lines` type `any`. `popup_create()` does a runtime type check on its first argument and rejects `any` with `E714: List required`.
+- **Fix**: Changed to `var lines: list<string> = result[0]` so `popup_create` accepts it.
+
 ## UI / Popup Lambda Issues (Vim9 compatibility)
 
 ### Fix 21: `ListPopup` empty block-body lambda
@@ -164,7 +169,7 @@
 
 ## Summary
 
-**25 fixes applied** across 17 files:
+**26 fixes applied** across 17 files:
 - 4 configuration/validation fixes
 - 3 session/state fixes
 - 1 transport fix
@@ -174,7 +179,7 @@
 - 2 review fixes
 - 1 test fix
 - 1 command completion fix
-- 5 Vim9 lambda/export fixes
+- 6 Vim9 lambda/export/type fixes
 - 4 documentation/CI fixes
 
 **8 items intentionally not fixed** (documented above).
