@@ -20,6 +20,8 @@ import autoload 'vim_opencode/commands.vim' as commands
 import autoload 'vim_opencode/prompt.vim' as prompt
 import autoload 'vim_opencode/permissions.vim' as permissions
 import autoload 'vim_opencode/ui/diff.vim' as diff
+import autoload 'vim_opencode/ui/style.vim' as style
+import autoload 'vim_opencode/ui/popup.vim' as popup
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/ui/panel.vim' as panel
 import autoload 'vim_opencode/quickchat.vim' as quickchat
@@ -76,17 +78,45 @@ nnoremap <silent> <Plug>(vim-opencode-toggle) <Cmd>Opencode toggle<CR>
 # are mapped; <Plug> names remain stable for the rest.
 if get(g:vim_opencode_config, 'default_mappings', false)
   var mappings = {
-    help: '<Plug>(vim-opencode-help)',
-    health: '<Plug>(vim-opencode-health)',
-    prompt: '<Plug>(vim-opencode-prompt)',
-    ask: '<Plug>(vim-opencode-ask)',
-    toggle: '<Plug>(vim-opencode-toggle)',
-  }
+    \ help: '<Plug>(vim-opencode-help)',
+    \ health: '<Plug>(vim-opencode-health)',
+    \ prompt: '<Plug>(vim-opencode-prompt)',
+    \ ask: '<Plug>(vim-opencode-ask)',
+    \ toggle: '<Plug>(vim-opencode-toggle)',
+    \ }
+  var command_mappings = {
+    \ open: 'open',
+    \ explain: 'ask @this explain',
+    \ session_list: 'session list',
+    \ session_pick: 'session pick',
+    \ session_new: 'session new',
+    \ session_open: 'session open',
+    \ model_list: 'model list',
+    \ model_pick: 'model pick',
+    \ agent_list: 'agent list',
+    \ agent_pick: 'agent pick',
+    \ server_connect: 'server connect',
+    \ server_status: 'server status',
+    \ server_disconnect: 'server disconnect',
+    \ permission_list: 'permission list',
+    \ permission_accept: 'permission accept',
+    \ permission_deny: 'permission deny',
+    \ diff_open: 'diff open',
+    \ diff_accept: 'diff accept',
+    \ diff_reject: 'diff reject',
+    \ command_list: 'command list',
+    \ }
   var keymaps = get(g:vim_opencode_config, 'keymaps', {})
   for [action, plug] in items(mappings)
     var key = get(keymaps, action, '')
     if key !=# '' && empty(maparg(key, 'n'))
       execute 'nnoremap <silent> ' .. key .. ' ' .. plug
+    endif
+  endfor
+  for [action, command] in items(command_mappings)
+    var key = get(keymaps, action, '')
+    if key !=# '' && empty(maparg(key, 'n'))
+      execute 'nnoremap <silent> ' .. key .. ' <Cmd>Opencode ' .. command .. '<CR>'
     endif
   endfor
 endif

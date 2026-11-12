@@ -23,8 +23,36 @@ export const Defaults: dict<any> = {
     health: '<Leader>oH',
     prompt: '<Leader>op',
     ask: '<Leader>oa',
-    operator: '<Leader>oo',
+    operator: '<Leader>or',
     toggle: '<Leader>ot',
+    open: '<Leader>oo',
+    explain: '<Leader>oe',
+    session_list: '<Leader>osl',
+    session_pick: '<Leader>osp',
+    session_new: '<Leader>osn',
+    session_open: '<Leader>oso',
+    model_list: '<Leader>oml',
+    model_pick: '<Leader>omp',
+    agent_list: '<Leader>ogl',
+    agent_pick: '<Leader>ogp',
+    server_connect: '<Leader>osc',
+    server_status: '<Leader>oss',
+    server_disconnect: '<Leader>osd',
+    permission_list: '<Leader>oql',
+    permission_accept: '<Leader>oqa',
+    permission_deny: '<Leader>oqd',
+    diff_open: '<Leader>odo',
+    diff_accept: '<Leader>oda',
+    diff_reject: '<Leader>odr',
+    command_list: '<Leader>ocl',
+  },
+  gui: {
+    popup_border: 'rounded',
+    popup_title: v:true,
+    footer_hint: v:true,
+    preview_width: 60,
+    colors: v:true,
+    default_position: 'right',
   },
   server: {
     username: '',
@@ -135,6 +163,7 @@ export def Validate(config: dict<any>): bool
   ValidateContext(config.context)
   ValidatePanel(config.panel)
   ValidateDiff(config.diff)
+  ValidateGui(config.gui)
   return true
 enddef
 
@@ -210,6 +239,34 @@ def ValidateDiff(value: any)
   RequireDict(value, 'diff')
   RequireBool(value, 'close_on_reply', 'diff')
   RequireBool(value, 'mappings', 'diff')
+enddef
+
+def ValidateGui(value: any)
+  RequireDict(value, 'gui')
+  if type(get(value, 'popup_border', v:null)) != v:t_string
+    Fail('gui.popup_border must be a string')
+  endif
+  if index(['rounded', 'single', 'none'], value.popup_border) < 0
+    Fail('gui.popup_border must be rounded, single or none')
+  endif
+  if type(get(value, 'popup_title', v:null)) != v:t_bool
+    Fail('gui.popup_title must be true or false')
+  endif
+  if type(get(value, 'footer_hint', v:null)) != v:t_bool
+    Fail('gui.footer_hint must be true or false')
+  endif
+  if type(get(value, 'preview_width', v:null)) != v:t_number || value.preview_width <= 0
+    Fail('gui.preview_width must be a positive number')
+  endif
+  if type(get(value, 'colors', v:null)) != v:t_bool
+    Fail('gui.colors must be true or false')
+  endif
+  if type(get(value, 'default_position', v:null)) != v:t_string
+    Fail('gui.default_position must be a string')
+  endif
+  if index(['right', 'horizontal', 'popup'], value.default_position) < 0
+    Fail('gui.default_position must be right, horizontal or popup')
+  endif
 enddef
 
 def RequireDict(value: any, name: string, parent: string = '')
