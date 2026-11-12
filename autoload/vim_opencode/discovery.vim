@@ -18,6 +18,7 @@ var poll_timer = 0
 var poll_attempts = 0
 var poll_callbacks: dict<any> = {}
 var start_job: any = v:null
+var connecting: bool = false
 
 # Return OpenCode's state directory using the same XDG fallback it uses.
 export def StateDir(): string
@@ -151,28 +152,56 @@ enddef
 
 # Discover, probe and subscribe. callbacks: on_success(conn, info), on_error(msg).
 export def Connect(callbacks: dict<any>)
+  if connecting
+    Invoke(get(callbacks, 'on_error', v:null), ['a discovery is already in progress'])
+    return
+  endif
+  connecting = v:true
+
+  # Wrap callbacks so the connecting flag is always reset when the async
+  # discovery chain resolves (success or error). Vim9 lambdas accept a single
+  # expression body, so delegate to def helpers.
+  var wrapped: dict<any> = {
+    \ on_success: (conn: any, info: any) => ConnectDoneSuccess(conn, info, callbacks),
+    \ on_error: (message: string) => ConnectDoneError(message, callbacks),
+  }
+
   var configured = Configured()
   if type(configured) != v:t_none
     # A configured URL is authoritative: never start a different server.
-    TryCandidates([configured], 0, callbacks, false)
+    TryCandidates([configured], 0, wrapped, false)
     return
   endif
 
   var registrations = Registrations()
   if !empty(registrations)
-    TryCandidates(registrations, 0, callbacks, false)
+    TryCandidates(registrations, 0, wrapped, false)
     return
   endif
 
   if !HasStartCommand()
+    connecting = v:false
     Invoke(get(callbacks, 'on_error', v:null), ['no OpenCode server found and server_command is empty'])
     return
   endif
 
   if !Start(get(callbacks, 'on_error', v:null))
+    connecting = v:false
     return
   endif
-  BeginPoll(callbacks)
+  BeginPoll(wrapped)
+enddef
+
+# Reset the connecting flag and invoke the user's on_success callback.
+def ConnectDoneSuccess(conn: any, info: any, cb: dict<any>)
+  connecting = v:false
+  Invoke(get(cb, 'on_success', v:null), [conn, info])
+enddef
+
+# Reset the connecting flag and invoke the user's on_error callback.
+def ConnectDoneError(message: string, cb: dict<any>)
+  connecting = v:false
+  Invoke(get(cb, 'on_error', v:null), [message])
 enddef
 
 def TryCandidates(candidates: list<dict<any>>, index: number, callbacks: dict<any>, polling: bool)
