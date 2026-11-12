@@ -15,6 +15,8 @@ import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/ui/render.vim' as render
+import autoload 'vim_opencode/ui/popup.vim' as popup
+import autoload 'vim_opencode/ui/style.vim' as style
 import autoload 'vim_opencode/util.vim' as util
 
 const OUTPUT_NAME = 'vim-opencode://transcript'
@@ -74,14 +76,22 @@ export def Open()
   if height < 4
     height = 4
   endif
+  var gui = get(cfg, 'gui', {})
+  var default_pos = get(gui, 'default_position', 'right')
   main_win = win_getid()
   EnsureBuffers()
 
-  execute cfg.panel.position .. ' split'
+  if default_pos ==# 'right'
+    execute 'vertical rightbelow split'
+  else
+    execute cfg.panel.position .. ' split'
+  endif
   execute 'resize ' .. height
   output_win = win_getid()
   execute 'buffer ' .. output_buf
   ApplyOutputWindowOptions()
+  ApplyStatusline()
+  ApplyStatusline()
 
   execute 'belowright split'
   execute 'resize ' .. INPUT_HEIGHT
@@ -269,6 +279,56 @@ def ApplyInputWindowOptions()
   setlocal nospell
 enddef
 
+def ApplyStatusline()
+  if output_win <= 0 || !win_id2win(output_win)
+    return
+  endif
+  var pstate = StatuslineState()
+  var hl = 'VimOpencodeMuted'
+  if pstate ==# 'connected'
+    hl = 'VimOpencodeInfo'
+  elseif pstate ==# 'thinking'
+    hl = 'VimOpencodeReasoning'
+  elseif pstate ==# 'error'
+    hl = 'VimOpencodeError'
+  endif
+  var cur_win = win_getid()
+  win_gotoid(output_win)
+  execute 'setlocal statusline=%#' .. hl .. '# OpenCode %{StateLabel()} ' .. '%#StatusLine#'
+  if cur_win != output_win && win_id2win(cur_win)
+    win_gotoid(cur_win)
+  endif
+enddef
+
+def StatuslineState(): string
+  var stt = server.Status()
+  if type(stt) != v:t_dict || !get(stt, 'connected', v:false)
+    return 'error'
+  endif
+  if state.SessionId() ==# ''
+    return 'connected'
+  endif
+  return 'idle'
+enddef
+
+def StateLabel(): string
+  var conn = server.Current()
+  if type(conn) == v:t_none
+    return 'disconnected'
+  endif
+  var sid = state.SessionId()
+  if sid ==# ''
+    return 'connected'
+  endif
+  return 'session: ' .. sid
+enddef
+
+def UpdateStatusline()
+  if IsOpen()
+    ApplyStatusline()
+  endif
+enddef
+
 def InstallMappings()
   if output_buf > 0
     execute 'nnoremap <buffer><silent> <CR> <Cmd>call g:VimOpencodePanelJump()<CR>'
@@ -277,6 +337,12 @@ def InstallMappings()
     execute 'nnoremap <buffer><silent> [m <Cmd>call g:VimOpencodePanelPrevMessage()<CR>'
     execute 'nnoremap <buffer><silent> ]u <Cmd>call g:VimOpencodePanelNextUser()<CR>'
     execute 'nnoremap <buffer><silent> [u <Cmd>call g:VimOpencodePanelPrevUser()<CR>'
+    execute 'nnoremap <buffer><silent> <C-e> <Cmd>execute "normal! \<C-e>"<CR>'
+    execute 'nnoremap <buffer><silent> <C-y> <Cmd>execute "normal! \<C-y>"<CR>'
+    execute 'nnoremap <buffer><silent> <PageDown> <Cmd>execute "normal! \<C-d>"<CR>'
+    execute 'nnoremap <buffer><silent> <PageUp> <Cmd>execute "normal! \<C-u>"<CR>'
+    execute 'nnoremap <buffer><silent> <C-d> <Cmd>execute "normal! \<C-d>"<CR>'
+    execute 'nnoremap <buffer><silent> <C-u> <Cmd>execute "normal! \<C-u>"<CR>'
   endif
   if input_buf > 0
     execute 'inoremap <buffer><silent> <CR> <Cmd>call g:VimOpencodePanelSubmit()<CR>'
@@ -686,6 +752,7 @@ def OnEvent(event: any)
   if event_type ==# 'server.connected'
     if IsOpen()
       EnsureSessionAsync()
+      UpdateStatusline()
     endif
     return
   endif
@@ -706,10 +773,12 @@ def OnEvent(event: any)
         state.AddUser(session_id, text)
       endif
     endif
+    UpdateStatusline()
     return
   endif
   if state.Apply(event)
     MarkDirty()
+    UpdateStatusline()
   endif
 enddef
 
