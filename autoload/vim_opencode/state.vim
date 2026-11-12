@@ -347,7 +347,9 @@ def ApplyRevert(data: dict<any>)
     return
   endif
   # Keep messages up to and including the boundary message; drop everything after.
-  messages = position == 0 ? [messages[0]] : messages[0 : position]
+  # Vim9 slice [0 : position+1] is exclusive of the end, so position+1 includes
+  # the boundary message at index `position`.
+  messages = messages[0 : position + 1]
   Reindex()
 enddef
 
