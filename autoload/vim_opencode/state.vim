@@ -346,7 +346,8 @@ def ApplyRevert(data: dict<any>)
   if position < 0
     return
   endif
-  messages = position == 0 ? [] : messages[0 : position - 1]
+  # Keep messages up to and including the boundary message; drop everything after.
+  messages = position == 0 ? [messages[0]] : messages[0 : position]
   Reindex()
 enddef
 
@@ -554,6 +555,8 @@ def EnsureMessage(id: string, kind: string): dict<any>
   if message_id ==# ''
     message_id = 'message:' .. len(messages)
   endif
+  # Reindex first so the index is always consistent with messages.
+  Reindex()
   if has_key(index, message_id)
     var position = index[message_id]
     if position > 0 && position <= len(messages)
@@ -657,15 +660,17 @@ def RemoveMessage(id: string)
   Reindex()
 enddef
 
-def DropOptimistic(text: string)
+def DropOptimistic(text: string): bool
+  var dropped = false
   for position in range(len(messages) - 1, 0, -1)
     var message = messages[position]
     if get(message, 'optimistic', false) && get(message, 'text', '') ==# text
       remove(messages, position)
       Reindex()
-      return
+      dropped = true
     endif
   endfor
+  return dropped
 enddef
 
 def Reindex()
