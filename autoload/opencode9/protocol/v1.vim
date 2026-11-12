@@ -7,6 +7,7 @@ vim9script
 # of the plugin never sees V1/V2 differences directly.
 
 import autoload 'opencode9/protocol/adapter.vim' as adapter
+import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/util.vim' as util
 
 const HEALTH_PATH = '/global/health'
@@ -17,7 +18,7 @@ export def CanProbe(): bool
   return true
 enddef
 
-export def Probe(conn: any, on_success: any, on_error: any): number
+export def Probe(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request(HEALTH_PATH, 'GET', v:null,
     (response: any, status: number) => {
       var info = NormalizeInfo(response)
@@ -26,7 +27,7 @@ export def Probe(conn: any, on_success: any, on_error: any): number
     on_error)
 enddef
 
-export def Subscribe(conn: any, on_event: any, on_error: any, on_close: any): number
+export def Subscribe(conn: server.Connection, on_event: any, on_error: any, on_close: any): number
   return conn.Stream(EVENT_PATH, {
     heartbeat_ms: HEARTBEAT_MS,
     on_event: (event: any) => {
@@ -66,7 +67,7 @@ export def EventData(event: any): any
 enddef
 
 # Resolve the most recent root session for a directory.
-export def ResolveSession(conn: any, directory: string, on_success: any, on_error: any): number
+export def ResolveSession(conn: server.Connection, directory: string, on_success: any, on_error: any): number
   var path = '/global/session?directory=' .. util.UrlEncode(directory) .. '&order=desc'
   return conn.Request(path, 'GET', v:null,
     (response: any, status: number) => HandleSessions(response, on_success, on_error),
@@ -93,7 +94,7 @@ def HandleSessions(response: any, on_success: any, on_error: any)
 enddef
 
 # List non-archived sessions for a directory, newest first.
-export def ListSessions(conn: any, directory: string, on_success: any, on_error: any): number
+export def ListSessions(conn: server.Connection, directory: string, on_success: any, on_error: any): number
   var path = '/global/session?directory=' .. util.UrlEncode(directory) .. '&order=desc'
   return conn.Request(path, 'GET', v:null,
     (response: any, status: number) => {
@@ -119,7 +120,7 @@ export def IsArchived(session: dict<any>): bool
 enddef
 
 # Create a session.
-export def CreateSession(conn: any, opts: dict<any>, on_success: any, on_error: any): number
+export def CreateSession(conn: server.Connection, opts: dict<any>, on_success: any, on_error: any): number
   var body: dict<any> = {}
   if type(get(opts, 'title', v:null)) != v:t_none
     body.title = opts.title
@@ -133,7 +134,7 @@ export def CreateSession(conn: any, opts: dict<any>, on_success: any, on_error: 
 enddef
 
 # Rename a session.
-export def RenameSession(conn: any, session_id: string, title: string, on_success: any, on_error: any): number
+export def RenameSession(conn: server.Connection, session_id: string, title: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id),
     'PUT',
@@ -143,7 +144,7 @@ export def RenameSession(conn: any, session_id: string, title: string, on_succes
 enddef
 
 # Delete a session.
-export def DeleteSession(conn: any, session_id: string, on_success: any, on_error: any): number
+export def DeleteSession(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id),
     'DELETE',
@@ -153,7 +154,7 @@ export def DeleteSession(conn: any, session_id: string, on_success: any, on_erro
 enddef
 
 # Interrupt a running session.
-export def InterruptSession(conn: any, session_id: string, on_success: any, on_error: any): number
+export def InterruptSession(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id) .. '/interrupt',
     'POST',
@@ -163,7 +164,7 @@ export def InterruptSession(conn: any, session_id: string, on_success: any, on_e
 enddef
 
 # Fork a session.
-export def ForkSession(conn: any, session_id: string, on_success: any, on_error: any): number
+export def ForkSession(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id) .. '/fork',
     'POST',
@@ -191,7 +192,7 @@ export def SessionId(value: any): string
 enddef
 
 # List models.
-export def ListModels(conn: any, on_success: any, on_error: any): number
+export def ListModels(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/global/model', 'GET', v:null,
     (response: any, status: number) => {
       var models = type(response) == v:t_dict ? get(response, 'models', []) : response
@@ -201,7 +202,7 @@ export def ListModels(conn: any, on_success: any, on_error: any): number
 enddef
 
 # List providers.
-export def ListProviders(conn: any, on_success: any, on_error: any): number
+export def ListProviders(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/global/provider', 'GET', v:null,
     (response: any, status: number) => {
       var providers = type(response) == v:t_dict ? get(response, 'providers', []) : response
@@ -211,7 +212,7 @@ export def ListProviders(conn: any, on_success: any, on_error: any): number
 enddef
 
 # List agents.
-export def ListAgents(conn: any, on_success: any, on_error: any): number
+export def ListAgents(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/global/agent', 'GET', v:null,
     (response: any, status: number) => {
       var agents = type(response) == v:t_dict ? get(response, 'agents', []) : response
@@ -221,7 +222,7 @@ export def ListAgents(conn: any, on_success: any, on_error: any): number
 enddef
 
 # List server commands.
-export def ListCommands(conn: any, on_success: any, on_error: any): number
+export def ListCommands(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/global/command', 'GET', v:null,
     (response: any, status: number) => {
       var commands = type(response) == v:t_dict ? get(response, 'commands', []) : response
@@ -231,7 +232,7 @@ export def ListCommands(conn: any, on_success: any, on_error: any): number
 enddef
 
 # Reply to a permission request.
-export def ReplyPermission(conn: any, session_id: string, request_id: string, reply: string, on_success: any, on_error: any): number
+export def ReplyPermission(conn: server.Connection, session_id: string, request_id: string, reply: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id) .. '/permission/' .. util.UrlEncode(request_id),
     'POST',
@@ -241,7 +242,7 @@ export def ReplyPermission(conn: any, session_id: string, request_id: string, re
 enddef
 
 # Reply to a question request.
-export def ReplyQuestion(conn: any, session_id: string, request_id: string, answer: string, on_success: any, on_error: any): number
+export def ReplyQuestion(conn: server.Connection, session_id: string, request_id: string, answer: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id) .. '/question/' .. util.UrlEncode(request_id),
     'POST',
@@ -251,7 +252,7 @@ export def ReplyQuestion(conn: any, session_id: string, request_id: string, answ
 enddef
 
 # Run a server command in a session.
-export def RunCommand(conn: any, session_id: string, name: string, arguments: string, opts: dict<any>, on_success: any, on_error: any): number
+export def RunCommand(conn: server.Connection, session_id: string, name: string, arguments: string, opts: dict<any>, on_success: any, on_error: any): number
   var body: dict<any> = {command: name, arguments: arguments}
   if type(get(opts, 'model', v:null)) != v:t_none
     body.model = opts.model
@@ -268,7 +269,7 @@ export def RunCommand(conn: any, session_id: string, name: string, arguments: st
 enddef
 
 # Send a prompt to a session.
-export def Prompt(conn: any, session_id: string, text: string, on_success: any, on_error: any, opts: dict<any> = {}): number
+export def Prompt(conn: server.Connection, session_id: string, text: string, on_success: any, on_error: any, opts: dict<any> = {}): number
   var body: dict<any> = {text: text}
   if type(get(opts, 'model', v:null)) != v:t_none
     body.model = opts.model
@@ -285,13 +286,13 @@ export def Prompt(conn: any, session_id: string, text: string, on_success: any, 
 enddef
 
 # Load a page of messages for the transcript panel.
-export def LoadMessages(conn: any, session_id: string, limit: number, on_success: any, on_error: any): number
+export def LoadMessages(conn: server.Connection, session_id: string, limit: number, on_success: any, on_error: any): number
   var path = '/global/session/' .. util.UrlEncode(session_id) .. '/message?limit=' .. limit
   return conn.Request(path, 'GET', v:null, on_success, on_error)
 enddef
 
 # Load a session diff.
-export def SessionDiff(conn: any, session_id: string, on_success: any, on_error: any): number
+export def SessionDiff(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/global/session/' .. util.UrlEncode(session_id) .. '/diff',
     'GET',

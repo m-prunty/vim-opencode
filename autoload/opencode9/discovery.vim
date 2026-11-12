@@ -201,7 +201,7 @@ def TryCandidates(candidates: list<dict<any>>, index: number, callbacks: dict<an
     (message: string, exit: number, status: number) => TryCandidates(candidates, index + 1, callbacks, polling))
 enddef
 
-def CandidateSucceeded(conn: any, info: any, callbacks: dict<any>)
+def CandidateSucceeded(conn: server.Connection, info: any, callbacks: dict<any>)
   StopPoll()
   conn.SetInfo(type(info) == v:t_dict ? info : {})
   conn.SetConnected(true)
@@ -211,14 +211,14 @@ def CandidateSucceeded(conn: any, info: any, callbacks: dict<any>)
   Invoke(get(callbacks, 'on_success', v:null), [conn, info])
 enddef
 
-def Subscribe(conn: any)
+def Subscribe(conn: server.Connection)
   v2.Subscribe(conn,
     (event: any) => OnEvent(conn, event),
     (message: string, exit: number, status: number) => OnStreamError(conn, message),
     () => OnStreamClose(conn))
 enddef
 
-def OnEvent(conn: any, event: any)
+def OnEvent(conn: server.Connection, event: any)
   var event_type = events.Type(event)
   if event_type ==# 'server.connected'
     conn.SetConnected(true)
@@ -229,7 +229,7 @@ def OnEvent(conn: any, event: any)
   events.Emit(event)
 enddef
 
-def OnStreamError(conn: any, message: string)
+def OnStreamError(conn: server.Connection, message: string)
   conn.SetConnected(false)
   if IsCurrent(conn) && conn.reconnect_enabled
     ScheduleReconnect(conn)
@@ -238,13 +238,13 @@ def OnStreamError(conn: any, message: string)
   util.Log('warn', 'stream disconnected: ' .. FirstLine(message))
 enddef
 
-def OnStreamClose(conn: any)
+def OnStreamClose(conn: server.Connection)
   if IsCurrent(conn) && conn.reconnect_enabled
     ScheduleReconnect(conn)
   endif
 enddef
 
-def ScheduleReconnect(conn: any)
+def ScheduleReconnect(conn: server.Connection)
   var timer = conn.ReconnectTimer()
   if timer > 0
     timer_stop(timer)
@@ -254,7 +254,7 @@ def ScheduleReconnect(conn: any)
   util.Log('info', printf('reconnecting to %s in %dms', conn.Url(), delay))
 enddef
 
-def RetrySubscribe(conn: any)
+def RetrySubscribe(conn: server.Connection)
   conn.SetReconnectTimer(0)
   if IsCurrent(conn) && conn.reconnect_enabled
     Subscribe(conn)
@@ -301,7 +301,7 @@ def FirstLine(value: string): string
   return matchstr(value, '^[^\n]*')
 enddef
 
-def IsCurrent(conn: any): bool
+def IsCurrent(conn: server.Connection): bool
   var current = server.Current()
   return type(current) != v:t_none && current is conn
 enddef
