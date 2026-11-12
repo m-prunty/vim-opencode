@@ -77,7 +77,7 @@
         "Create style.vim: style#get_color, style#ansi, color wrappers for VimOpencode* groups, style#key_label.",
         "Create popup.vim vim_opencode#ui#popup#run(spec): bordered popup (rounded/single/none), title, footer, callback, preview, keymaps, inputlist() fallback.",
         "Scrolling: map <C-e>/<C-y>/<PageUp>/<PageDown>/<C-d>/<C-u> inside popups and in the transcript window.",
-        "Add default compound keymaps (opt-in default_mappings): oo -> :Opencode open, oe -> :Opencode ask @this explain, keeping ot/op/oa/oh/oH; expose keymaps.open and keymaps.explain."
+        "Add default compound keymaps (opt-in default_mappings): all start with <Leader>o followed by an obvious letter (2-3 chars). Daily leaves: oh help, oH health, op prompt, oa ask, ot toggle, oo open, oe explain (@this explain). Category prefixes: os (session list/pick/new/open; server connect/status/disconnect), om (model list/pick), og (agent list/pick), oq (permission list/accept/deny), od (diff open/accept/reject), oc (palette ocp, command list ocl). ot is a leaf so tabs are not extended. oc is not a leaf so osc/oss/ocp/ocl coexist."
       ],
       "acceptance": ":Opencode palette stub opens a bordered popup listing commands; popups scroll with <C-e>/<C-y>/<PageUp>/<PageDown>; no hard-coded colors; oo/oe mappings work when default_mappings: true; graceful fallback without +popupwin."
     },
@@ -107,7 +107,7 @@
       "steps": [
         "Register palette in COMMANDS and wire Dispatch() to palette.Palette().",
         "Build palette.vim: flattened source of all COMMANDS + sub-actions (session/model/agent/command/permission/diff/review/tab), as-you-type fuzzy filter, Enter run, C-P preview, C-Q close, C-H help, jk/↑↓ navigate, MRU.",
-        "Add opt-in <Leader>oc mapping consistent with existing default_mappings/keymaps."
+        "Add opt-in <Leader>ocp mapping (<Leader>o chord set); `oc` is deliberately not a leaf so <Leader>osc/<Leader>oss/<Leader>ocp/<Leader>ocl coexist."
       ],
       "acceptance": "One palette popup launches every :Opencode command and sub-action without leaving normal mode."
     },
@@ -149,7 +149,7 @@
       "steps": [
         "Add title bar + border + footer hint line to split panel (InfoChunk header rendered as chrome).",
         "Scrolling: <C-e>/<C-y>/<PageUp>/<PageDown>/<C-d>/<C-u> scroll the transcript/output window.",
-        "Model-state status bar: color pill by state — idle (VimOpencodeMuted), connected/ready (VimOpencodeInfo), thinking/streaming (VimOpencodeReasoning), error/disconnected (VimOpencodeError), derived via style#get_color.",
+        "Model-state status bar: color pill by state driven by events — idle (VimOpencodeMuted), connected/ready (VimOpencodeInfo, server.connected), thinking/streaming (VimOpencodeReasoning, prompt.sent / session.status in-progress), error/disconnected (VimOpencodeError, server.disconnected / prompt.failed); derived via style#get_color.",
         "Apply highlight-derived colors and key labels to panel mappings (q, ]m, [m, ]u, [u, <CR>, C-p, C-n).",
         "Default right position: :Opencode open/toggle open the panel to the right (vertical split) unless gui.default_position is 'horizontal'/'popup' or an explicit target/panel.position overrides."
       ],

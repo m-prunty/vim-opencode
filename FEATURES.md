@@ -279,21 +279,56 @@ let g:vim_opencode_config = {
   \   toggle: '<Leader>ot',
   \   open: '<Leader>oo',
   \   explain: '<Leader>oe',
+  \   session_list: '<Leader>osl',
+  \   session_pick: '<Leader>osp',
+  \   session_new: '<Leader>osn',
+  \   session_open: '<Leader>oso',
+  \   model_list: '<Leader>oml',
+  \   model_pick: '<Leader>omp',
+  \   agent_list: '<Leader>ogl',
+  \   agent_pick: '<Leader>ogp',
+  \   server_connect: '<Leader>osc',
+  \   server_status: '<Leader>oss',
+  \   server_disconnect: '<Leader>osd',
+  \   permission_list: '<Leader>oql',
+  \   permission_accept: '<Leader>oqa',
+  \   permission_deny: '<Leader>oqd',
+  \   diff_open: '<Leader>odo',
+  \   diff_accept: '<Leader>oda',
+  \   diff_reject: '<Leader>odr',
+  \   palette: '<Leader>ocp',
+  \   command_list: '<Leader>ocl',
   \ },
   \}
 ```
 
 ### Most useful default shortcuts
 
+All shortcuts start with `<Leader>o` followed by an obvious letter. Single-letter entries are leaf mappings; multi-letter entries group by category prefix (`os` = session/server, `om` = model, `og` = aGent, `oq` = permission/question, `od` = diff, `oc` = commands).
+
 | Shortcut | Command | When to use |
 |----------|---------|-------------|
 | `<Leader>op` | `:Opencode prompt` | Send a prompt with context placeholders (most used) |
 | `<Leader>oa` | `:Opencode ask` | Interactively compose a prompt before sending |
+| `<Leader>ot` | `:Opencode toggle` | Show/hide the split panel |
 | `<Leader>oo` | `:Opencode open` | Open the conversation panel (right by default) |
 | `<Leader>oe` | `:Opencode ask @this explain` | Explain the current selection or cursor location |
-| `<Leader>ot` | `:Opencode toggle` | Show/hide the split panel |
 | `<Leader>oh` | `:Opencode help` | Open command reference |
 | `<Leader>oH` | `:Opencode health` | Verify environment and connection |
+| `<Leader>ocp` | `:Opencode palette` | Interactive palette reaching every `:Opencode` command |
+| `<Leader>osl` | `:Opencode session list` | List conversations for the current directory |
+| `<Leader>osp` | `:Opencode session pick` | Interactively pick a session |
+| `<Leader>osn` | `:Opencode session new` | Create a new session |
+| `<Leader>oml` | `:Opencode model list` | List available models |
+| `<Leader>omp` | `:Opencode model pick` | Pick a model |
+| `<Leader>ogl` | `:Opencode agent list` | List available agents |
+| `<Leader>ogp` | `:Opencode agent pick` | Pick an agent |
+| `<Leader>osc` | `:Opencode server connect` | Connect to the OpenCode server |
+| `<Leader>oss` | `:Opencode server status` | Show connection state |
+| `<Leader>oql` | `:Opencode permission list` | List pending permission requests |
+| `<Leader>oqa` | `:Opencode permission accept` | Accept the most recent permission request |
+| `<Leader>odo` | `:Opencode diff open` | Open the active edit diff for review |
+| `<Leader>oda` | `:Opencode diff accept` | Accept the proposed edit |
  
 
 ### Panel buffer-local shortcuts (active when panel is open)

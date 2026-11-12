@@ -76,13 +76,55 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
    - accepts `items`, `title`, `border`, `width`, `height`, `row`, `col`, `callback`, `preview`, `footer`, `keymaps`.
    - builds a `popup_create()` window with border/title, installs `<buffer>` mappings, runs the callback on selection, closes on `C-Q`.
    - **scrolling:** map `<C-e>`, `<C-y>`, `<PageUp>`, `<PageDown>`, `<C-d>`, `<C-u>` inside popups to scroll the popup contents (`popup_close`/`popup` navigation or `win_execute` on the popup winid with `normal! <C-e>` etc.); fall back to `inputlist()` when `+popupwin` is unavailable.
-4. Add default compound keymaps (opt-in via `default_mappings`):
-   - `oo` → `:Opencode open` (open panel)
-   - `oe` → `:Opencode ask @this explain` (explain selection/cursor)
-   - keep existing `ot` → toggle, `op` → prompt, `oa` → ask, `oh` → help, `oH` → health.
-   - expose under `keymaps.open`, `keymaps.explain` in config with defaults `<Leader>oo` / `<Leader>oe` (two-char sequences after `<Leader>o`).
+4. Add default compound keymaps (opt-in via `default_mappings`). All shortcuts start with `<Leader>o` followed by an obvious letter (2–3 chars total after `<Leader>`). Single-letter entries are leaves (nothing extends them); multi-letter entries group by category prefix.
 
-**Acceptance:** a `:Opencode palette` stub exists and opens a bordered popup listing commands; popups scroll with `<C-e>`/`<C-y>`/`<PageUp>`/`<PageDown>`; no hard-coded colors; `oo`/`oe` mappings work when `default_mappings: true`; falls back cleanly without `+popupwin`.
+Daily driver (single letter, leaf mappings):
+   - `oh` → `:Opencode help`          (command reference)
+   - `oH` → `:Opencode health`        (verify environment/connection)
+   - `op` → `:Opencode prompt`        (send a prompt with @ placeholders — most used)
+   - `oa` → `:Opencode ask`           (interactively compose a prompt)
+   - `ot` → `:Opencode toggle`        (show/hide the split panel)
+   - `oo` → `:Opencode open`          (open the panel, right by default)
+   - `oe` → `:Opencode ask @this explain` (explain the selection/cursor)
+
+Sessions (prefix `os` = session):
+   - `osl` → `:Opencode session list`
+   - `osp` → `:Opencode session pick`
+   - `osn` → `:Opencode session new`
+   - `oso` → `:Opencode session open`
+
+Models (prefix `om` = model):
+   - `oml` → `:Opencode model list`
+   - `omp` → `:Opencode model pick`
+
+Agents (prefix `og` = aGent, since `a` is ask):
+   - `ogl` → `:Opencode agent list`
+   - `ogp` → `:Opencode agent pick`
+
+Server (prefix `os` too — diverges at the 3rd char, no leaf conflict):
+   - `osc` → `:Opencode server connect`
+   - `oss` → `:Opencode server status`
+   - `osd` → `:Opencode server disconnect`
+
+Permissions (prefix `oq` = question/permission request):
+   - `oql` → `:Opencode permission list`
+   - `oqa` → `:Opencode permission accept`
+   - `oqd` → `:Opencode permission deny`
+
+Diff (prefix `od` = diff):
+   - `odo` → `:Opencode diff open`
+   - `oda` → `:Opencode diff accept`
+   - `odr` → `:Opencode diff reject`
+
+Palette / commands:
+   - `ocp` → `:Opencode palette`        (open the interactive command palette — reaches every command)
+   - `ocl` → `:Opencode command list`
+
+Expose under `keymaps` in config: `help`, `health`, `prompt`, `ask`, `toggle`, `open`, `explain`, `session_list`, `session_pick`, `session_new`, `session_open`, `model_list`, `model_pick`, `agent_list`, `agent_pick`, `server_connect`, `server_status`, `server_disconnect`, `permission_list`, `permission_accept`, `permission_deny`, `diff_open`, `diff_accept`, `diff_reject`, `palette`, `command_list`. Defaults map to the `<Leader>o*` chords above.
+
+Note: `ot` (toggle) is a leaf, so it cannot be extended (no `otl`/`otn` for tabs); tabs keep their existing `tab` subcommand or a user-chosen mapping. `oc` is deliberately not a leaf so `osc`/`oss`/`ocp`/`ocl` can coexist.
+
+**Acceptance:** a `:Opencode palette` stub exists and opens a bordered popup listing commands; popups scroll with `<C-e>`/`<C-y>`/`<PageUp>`/`<PageDown>`; no hard-coded colors; the full `<Leader>o*` chord set works when `default_mappings: true`; falls back cleanly without `+popupwin`.
 
 ### Phase 1 — Replace `inputlist()` pickers with styled popups
 **Files:** `autoload/vim_opencode/catalog.vim` (`ShowPicker`), `autoload/vim_opencode/sessions.vim` (list/pick), `autoload/vim_opencode/permissions.vim` (pending list)
@@ -102,7 +144,7 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
    - as-you-type fuzzy filter over `name`/`description` (vim regex filter, no external dependency).
    - `Enter` → run handler; `C-P` → preview; `C-Q` → close; `C-H` → show help summary; `jk/↑↓` navigate.
    - persistent last-selection and recent-commands MRU.
-9. Add default mapping `<Leader>oc` → `:Opencode palette` (opt-in via `default_mappings`, consistent with existing keymaps).
+9. Add default mapping `<Leader>ocp` → `:Opencode palette` (opt-in via `default_mappings`, consistent with the `<Leader>o*` chord set; `oc` is deliberately not a leaf so `osc`/`oss`/`ocp`/`ocl` can coexist).
 
 **Acceptance:** one palette popup can launch every `:Opencode` command and sub-action without leaving normal mode.
 
@@ -134,12 +176,12 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
 
 15. Add a title bar + border + footer hint line to the split panel (`InfoChunk()` already builds a header; render it as a title/footer with border highlights).
 16. **Scrolling:** ensure `<C-e>`/`<C-y>`/`<PageUp>`/`<PageDown>`/`<C-d>`/`<C-u>` scroll the transcript/output window when focus is there (and popups from Phase 0).
-17. **Model-state status bar:** color the panel/statusline pill based on server/session/model state:
-   - `idle` — muted/base (`VimOpencodeMuted`)
-   - `connected` / ready — green-ish (`VimOpencodeInfo`)
-   - `thinking` / streaming / tool running — yellow (`VimOpencodeReasoning`)
-   - `error` / disconnected — red (`VimOpencodeError`)
-   Derive the colors from highlight groups via `style#get_color` (never hard-code ANSI).
+17. **Model-state status bar:** color the panel/statusline pill based on server/session/model state, driven by the plugin's events:
+   - `idle` — muted/base (`VimOpencodeMuted`): connected, nothing in flight.
+   - `connected` / ready — green-ish (`VimOpencodeInfo`): `server.connected`, session ready.
+   - `thinking` / streaming / tool running — yellow (`VimOpencodeReasoning`): `prompt.sent` (request in flight), `session.status` reporting in-progress/thinking.
+   - `error` / disconnected — red (`VimOpencodeError`): `server.disconnected`, `prompt.failed`, `session.status` error.
+   Derive the colors from highlight groups via `style#get_color` (never hard-code ANSI). Listen to `OpencodeEvent:*` User autocmds / `events.AddListener` to flip the pill.
 18. Apply the same highlight-derived colors and key labels to panel mappings (`q`, `]m`, `[m`, `]u`, `[u`, `<CR>`, `C-p`, `C-n`) so panel, palette, and pickers look like one UI.
 19. **Default right position:** `:Opencode open` and `:Opencode toggle` open the panel to the **right** of the screen (vertical split) unless `gui.default_position` is `'horizontal'`/`'popup'` or an explicit target (`open [input|output|panel]` / `panel.position`) overrides it.
 
