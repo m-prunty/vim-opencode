@@ -186,8 +186,6 @@ class Handler(BaseHTTPRequestHandler):
             }
             SESSIONS.insert(0, fork)
             self.send_json(200, {"data": fork})
-        elif path.startswith("/api/session/") and path.endswith("/command"):
-            self.send_json(200, {"ok": True})
         elif path == "/api/session" or path == "/api/session/":
             payload = self.read_json()
             COUNTER[0] += 1
