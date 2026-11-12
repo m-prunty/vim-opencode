@@ -32,6 +32,10 @@ export def Start(instruction: string, line_range: list<number>)
     return
   endif
   var ctx = context.Capture(line_range)
+  if !filereadable(bufname(ctx.buf))
+    util.EchoError('quick chat requires a writable file buffer')
+    return
+  endif
   if type(ctx.range) == v:t_none
     var line = ctx.cursor[1]
     ctx.range = {from: [line, 1], to: [line, LineLength(ctx.buf, line)], kind: 'line'}
@@ -83,7 +87,9 @@ def Create(conn: any)
       var ctx = active.ctx
       var source = join(active.original, "\n")
       var prompt = 'Return only the complete replacement text for this line range. Do not explain.\n\nInstruction: ' .. active.instruction .. '\n\nText:\n' .. source
-      v2.Prompt(conn, id, context.Render(prompt, ctx), (result: any, code: number) => {}, (message: string, exit: number, status: number) => Fail(message), catalog.PromptOptions())
+      var rendered = context.Render(prompt, ctx)
+      var opts = catalog.PromptOptions()
+      v2.Prompt(conn, id, rendered, Noop, (message: string, exit: number, code: number) => Fail(message), opts)
       events.EmitLocal('quickchat.started', {sessionID: id, from: active.from, to: active.to})
     },
     (message: string, exit: number, status: number) => Fail(message))
