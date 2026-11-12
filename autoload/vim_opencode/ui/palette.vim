@@ -97,12 +97,8 @@ export def Palette(info: dict<any>)
     \ border: 'rounded',
     \ width: 74,
     \ height: min([len(lines) + 4, 22]),
-    \ callback: (sel: string) => {
-      g:PaletteRunSelection({'selection': sel})
-    },
-    \ cancel: () => {
-      palette_state = {}
-    },
+    \ callback: (sel: string) => g:PaletteRunSelection({'selection': sel}),
+    \ cancel: funcref('g:PaletteCancel'),
     \ footer: footer,
     \ keymaps: {
     \   '/': funcref('g:PaletteStartFilter'),
@@ -180,7 +176,7 @@ def g:PalettePreview(info: dict<any>)
     \ border: 'rounded',
     \ width: 50,
     \ height: min([len(lines) + 4, 10]),
-    \ callback: (sel: string) => {},
+    \ callback: (sel: string) => 0,
     \ footer: 'C-Q close',
     \ }
   popup.Run(pspec)
@@ -192,4 +188,8 @@ enddef
 
 def g:PalettePrev(info: dict<any>)
   # Navigation handled by popup's inherent line movement; this is a placeholder.
+enddef
+
+def g:PaletteCancel()
+  palette_state = {}
 enddef
