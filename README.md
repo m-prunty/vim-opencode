@@ -21,8 +21,10 @@ selection, rename, fork and deletion. Permissions and diff review arrive in
 selection, rename, fork and deletion, model/agent catalogs, server commands,
 permission replies, single-file edit review, deduplicated rich context and
 review comments attached to prompts.
-It also includes a cancellable quick-chat inline-edit workflow and persistent
-project-scoped panel tabs.
+It also includes a cancellable quick-chat inline-edit workflow, persistent
+project-scoped panel tabs, and a V1 protocol adapter. P10 hardening adds CI,
+message capping, assert_equal-style tests, transport error formatting, and
+config validation.
 
 See `docs/analysis/vim9-opencode-implementation-analysis.json` for the
 implementation plan and `doc/opencode9.txt` for user documentation.

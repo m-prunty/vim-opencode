@@ -432,7 +432,7 @@ def ReadStatus(file: string): number
   return status
 enddef
 
-def FormatError(req: dict<any>, exit_status: number, status: number, body: string): string
+export def FormatError(req: dict<any>, exit_status: number, status: number, body: string): string
   var lines: list<string> = [req.method .. ' ' .. req.url .. ' failed']
   lines->add('curl exit: ' .. exit_status)
   if status > 0
@@ -447,7 +447,7 @@ def FormatError(req: dict<any>, exit_status: number, status: number, body: strin
   return join(lines, "\n")
 enddef
 
-def Truncate(value: string, limit: number): string
+export def Truncate(value: string, limit: number): string
   if strlen(value) <= limit
     return value
   endif

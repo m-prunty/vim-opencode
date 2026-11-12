@@ -15,15 +15,35 @@ const MAX_INPUT_CHARS = 400
 const MAX_RESULT_CHARS = 2000
 
 # Convert the current transcript into ordered render chunks.
-export def Chunks(): list<dict<any>>
+# When max_messages is set, only the most recent messages are rendered and a
+# truncation notice is prepended so the user knows older content was dropped.
+export def Chunks(max_messages: number = 0): list<dict<any>>
   var chunks: list<dict<any>> = []
-  for message in state.Messages()
+  var all_messages = state.Messages()
+  var start = 0
+  if max_messages > 0 && len(all_messages) > max_messages
+    start = len(all_messages) - max_messages
+    chunks->add({
+      key: 'truncated',
+      kind: 'notice',
+      lines: [
+        '# ' .. (len(all_messages) - max_messages) .. ' older messages hidden (max_messages=' .. max_messages .. ')',
+        '# Scroll or reopen the panel to see more context.',
+      ],
+      fold: false,
+      props: [{offset: 0, col: 1, length: 1, group: 'Opencode9Muted'}],
+    })
+  endif
+  var i = start
+  while i < len(all_messages)
+    var message = all_messages[i]
     var produced = ChunksForMessage(message)
     if !empty(produced)
       chunks += produced
       chunks->add({key: 'sep:' .. message.id, kind: 'separator', lines: [''], fold: false, props: []})
     endif
-  endfor
+    i += 1
+  endwhile
   return chunks
 enddef
 

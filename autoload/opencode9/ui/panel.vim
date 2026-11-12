@@ -430,7 +430,9 @@ export def Flush()
     return
   endif
 
-  var chunks = [InfoChunk()] + render.Chunks()
+  var cfg = config.Get().panel
+  var max_messages = get(cfg, 'max_messages', 200)
+  var chunks = [InfoChunk()] + render.Chunks(max_messages)
   var common = CommonPrefix(chunks)
   if common == len(rendered) && common == len(chunks)
     return

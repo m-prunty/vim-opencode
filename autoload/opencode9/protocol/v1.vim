@@ -301,7 +301,7 @@ export def SessionDiff(conn: any, session_id: string, on_success: any, on_error:
 enddef
 
 # Normalize a V1 health response into a shared info dict.
-def NormalizeInfo(response: any): dict<any>
+export def NormalizeInfo(response: any): dict<any>
   if type(response) != v:t_dict
     return {version: '', healthy: false}
   endif
@@ -313,7 +313,7 @@ def NormalizeInfo(response: any): dict<any>
 enddef
 
 # Normalize a V1 event into a shared event dict.
-def NormalizeEvent(event: any): dict<any>
+export def NormalizeEvent(event: any): dict<any>
   if type(event) != v:t_dict
     return {type: '', data: {}}
   endif
@@ -339,7 +339,7 @@ def NormalizeEvent(event: any): dict<any>
 enddef
 
 # Normalize a V1 session into a shared session dict.
-def NormalizeSession(session: any): dict<any>
+export def NormalizeSession(session: any): dict<any>
   if type(session) != v:t_dict
     return {}
   endif
