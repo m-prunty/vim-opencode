@@ -234,6 +234,10 @@ export def LoadMessages(conn: any, session_id: string, limit: number, on_success
   return conn.Request(path, 'GET', v:null, on_success, on_error)
 enddef
 
+export def SessionDiff(conn: any, session_id: string, on_success: any, on_error: any): number
+  return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/diff', 'GET', v:null, on_success, on_error)
+enddef
+
 def Invoke(callback: any, args: list<any>)
   if type(callback) == v:t_func
     call(callback, args)

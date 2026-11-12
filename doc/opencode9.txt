@@ -77,6 +77,8 @@ open [target]           Open the input, output or panel window. (P3)
 close [target]          Close a panel window. (P3)
 permission ...          List, accept, deny or answer pending requests.
 diff ...                Open, accept, reject or close the active edit diff.
+review ...              List, add or clear review comments. Comments are
+                        attached to the next prompt.
 quickchat               Replace the current range in place. (P7)
 debug ...               Inspect plugin state. (P10)
 
@@ -246,6 +248,7 @@ The plugin also emits local events:
   OpencodeEvent:diff.pending        A single-file edit is ready for review.
   OpencodeEvent:diff.accepted       A proposed edit was written to disk.
   OpencodeEvent:diff.rejected       A proposed edit was discarded.
+  OpencodeEvent:review.pending      A review comment was created.
 
 ==============================================================================
 6. PANEL                                                       *opencode9-panel*

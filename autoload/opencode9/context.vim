@@ -13,6 +13,7 @@ const PLACEHOLDERS: list<string> = [
   '@marks',
   '@this',
 ]
+var sent_hashes: dict<dict<string>> = {}
 
 # Capture the current window, cursor and optional command/visual range.
 export def Capture(line_range: list<number>): dict<any>
@@ -158,6 +159,52 @@ enddef
 
 export def Placeholders(): list<string>
   return copy(PLACEHOLDERS)
+enddef
+
+export def Rich(ctx: dict<any>): dict<string>
+  var result: dict<string> = {}
+  var buf = get(ctx, 'buf', 0)
+  if type(buf) == v:t_number && buf > 0 && IsFileBuffer(buf)
+    result.file = join(getbufline(buf, 1, '$'), "\n")
+    result.cursor = join(getbufline(buf, max([1, ctx.cursor[1] - 3]), ctx.cursor[1] + 3), "\n")
+    result.diff = GitDiff(ctx.cwd, bufname(buf))
+  endif
+  return result
+enddef
+
+export def Changed(session_id: string, ctx: dict<any>): dict<string>
+  var current = Rich(ctx)
+  var previous = get(sent_hashes, session_id, {})
+  var changed: dict<string> = {}
+  var hashes: dict<string> = {}
+  for [name, value] in items(current)
+    var hash = exists('*sha256') ? sha256(value) : string([strlen(value), value])
+    hashes[name] = hash
+    if get(previous, name, '') !=# hash
+      changed[name] = value
+    endif
+  endfor
+  sent_hashes[session_id] = hashes
+  return changed
+enddef
+
+export def ClearSent(session_id: string = '')
+  if session_id ==# ''
+    sent_hashes = {}
+  elseif has_key(sent_hashes, session_id)
+    remove(sent_hashes, session_id)
+  endif
+enddef
+
+def GitDiff(cwd: string, file: string): string
+  if !executable('git') || file ==# ''
+    return ''
+  endif
+  try
+    return join(systemlist('git -C ' .. shellescape(cwd) .. ' diff -- ' .. shellescape(file)), "\n")
+  catch
+    return ''
+  endtry
 enddef
 
 def Build(placeholder: string, ctx: dict<any>): any

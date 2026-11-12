@@ -7,6 +7,7 @@ import autoload 'opencode9/context.vim' as context
 import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/events.vim' as events
 import autoload 'opencode9/protocol/v2.vim' as v2
+import autoload 'opencode9/review.vim' as review
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/util.vim' as util
 
@@ -102,6 +103,11 @@ def Submit(conn: any, session: any, text: string, ctx: dict<any>)
   endif
 
   var rendered = context.Render(text, ctx)
+  var review_text = review.Text()
+  if review_text !=# ''
+    rendered ..= "\n\n" .. review_text
+    review.MarkSent()
+  endif
   v2.Prompt(conn, session_id, rendered,
     (result: any, status: number) => Succeeded(ctx, session_id, rendered),
     (message: string, exit: number, status: number) => Fail(ctx, message),

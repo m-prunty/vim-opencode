@@ -14,6 +14,7 @@ import autoload 'opencode9/sessions.vim' as sessions
 import autoload 'opencode9/state.vim' as state
 import autoload 'opencode9/ui/panel.vim' as panel
 import autoload 'opencode9/ui/diff.vim' as diff
+import autoload 'opencode9/review.vim' as review
 import autoload 'opencode9/util.vim' as util
 
 const COMMANDS: dict<dict<any>> = {
@@ -35,6 +36,7 @@ const COMMANDS: dict<dict<any>> = {
   close: {phase: 'P3', usage: 'close [input|output|panel]', description: 'Close a panel window', implemented: true},
   permission: {phase: 'P5', usage: 'permission [list|accept|always|accept_all|deny|ask]', description: 'Answer pending permission requests', implemented: true},
   diff: {phase: 'P5', usage: 'diff [open|accept|reject|close]', description: 'Review the active edit diff', implemented: true},
+  review: {phase: 'P6', usage: 'review [list|add|clear]', description: 'Manage review comments', implemented: true},
   quickchat: {phase: 'P7', usage: 'quickchat', description: 'Edit the current range in place', implemented: false},
   debug: {phase: 'P10', usage: 'debug [on|off|dump]', description: 'Inspect plugin state', implemented: false},
 }
@@ -89,6 +91,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       Permission(rest)
     elseif name ==# 'diff'
       Diff(rest)
+    elseif name ==# 'review'
+      Review(rest)
     elseif name ==# 'prompt'
       PromptCommand(rest, range)
     elseif name ==# 'ask'
@@ -331,6 +335,27 @@ def Diff(rest: string)
     diff.Close()
   else
     util.EchoError('unknown diff action "' .. action .. '"')
+  endif
+enddef
+
+def Review(rest: string)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S+')
+  var tail = trim(substitute(argument, '^\S+\s*', '', ''))
+  if action ==# '' || action ==# 'list'
+    var text = review.Text()
+    echomsg text ==# '' ? 'opencode9: no review comments' : text
+  elseif action ==# 'clear'
+    review.Clear()
+  elseif action ==# 'add'
+    if tail ==# ''
+      util.EchoError('review add requires a comment')
+    else
+      review.AddCurrent(tail)
+      util.EchoInfo('review comment added')
+    endif
+  else
+    util.EchoError('unknown review action "' .. action .. '"')
   endif
 enddef
 
