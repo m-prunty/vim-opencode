@@ -26,13 +26,14 @@ export def Capture(line_range: list<number>): dict<any>
     visual: false,
   }
 
-  var line1 = line_range[0]
-  var line2 = line_range[1]
+  var line1 = get(line_range, 0, 0)
+  var line2 = get(line_range, 1, 0)
+  var has_command_range = line1 > 0 && line2 > 0
   var from = getpos("'<")
   var to = getpos("'>")
   var last_visual = visualmode()
   var marks_match = from[1] > 0 && to[1] > 0 &&
-    ((from[1] == line1 && to[1] == line2) || (from[1] == line2 && to[1] == line1))
+    (!has_command_range || (from[1] == line1 && to[1] == line2) || (from[1] == line2 && to[1] == line1))
 
   if last_visual !=# '' && marks_match
     var kind = last_visual ==# 'V' ? 'line' : (last_visual ==# "\<C-v>" ? 'block' : 'char')
@@ -49,7 +50,7 @@ export def Capture(line_range: list<number>): dict<any>
     endif
     ctx.range = {from: start, to: end, kind: kind}
     ctx.visual = true
-  elseif line1 != line2
+  elseif has_command_range && line1 != line2
     ctx.range = {from: [line1, 1], to: [line2, LineLength(line2)], kind: 'line'}
   endif
 
