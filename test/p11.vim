@@ -71,7 +71,7 @@ try
   # Default keymap chords are registered in config defaults.
   var defaults = config.Defaults
   Check(defaults.keymaps.open ==# '<Leader>oo', 'open keymap default wrong')
-  Check(defaults.keymaps.explain ==# '<Leader>oe', 'explain keymap default wrong')
+  Check(defaults.keymaps.explain ==# '<Leader>ox', 'explain keymap default wrong')
   Check(defaults.keymaps.palette ==# '<Leader>ocp', 'palette keymap default wrong')
   Check(defaults.keymaps.session_list ==# '<Leader>osl', 'session_list keymap default wrong')
   Check(defaults.keymaps.server_connect ==# '<Leader>osc', 'server_connect keymap default wrong')

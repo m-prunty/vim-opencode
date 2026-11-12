@@ -213,7 +213,7 @@ Note: `ot` (toggle) is a leaf, so it cannot be extended (no `otl`/`otn` for tabs
 | `autoload/vim_opencode/permissions.vim` | edit | Styled popup for pending permissions. |
 | `autoload/vim_opencode/commands.vim` | edit | Register `palette` command + dispatch. |
 | `autoload/vim_opencode/ui/panel.vim` | edit | Panel title/border/footer chrome + statusline pill + scrolling + right-default position. |
-| `plugin/vim-opencode.vim` | edit | Default mappings `<Leader>oc` (palette), `<Leader>oo` (open), `<Leader>oe` (`ask @this explain`), palette highlight groups. |
+| `plugin/vim-opencode.vim` | edit | Default mappings `<Leader>oc` (palette), `<Leader>oo` (open), `<Leader>ox` (`ask @this explain`), palette highlight groups. |
 | `doc/vim-opencode.txt` | edit | Document GUI config, palette, pickers, preview, peek key, shortcuts `oo`/`oe`, right-default position. |
 | `FEATURES.md` | edit | Feature table + keymap additions (`oo`, `oe`, palette, rounded borders, scrolling, status bar). |
 | `test/` | add | Headless smoke tests for popups/palette/pickers. |

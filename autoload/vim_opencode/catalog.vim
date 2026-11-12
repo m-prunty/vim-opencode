@@ -273,15 +273,13 @@ def ListPopup(kind: string, items: any)
   var title = 'OpenCode ' .. kind .. 's'
   var footer = 'C-Q close'
   popup.Run({
-    \ spec: {
-      \ items: labels,
-      \ title: title,
-      \ border: 'rounded',
-      \ width: 70,
-      \ height: min([len(labels) + 4, 20]),
-      \ callback: (sel) => {},
-      \ footer: footer,
-      \ },
+    \ items: labels,
+    \ title: title,
+    \ border: 'rounded',
+    \ width: 70,
+    \ height: min([len(labels) + 4, 20]),
+    \ callback: (sel) => {},
+    \ footer: footer,
     \ })
 enddef
 

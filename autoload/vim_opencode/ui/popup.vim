@@ -310,7 +310,7 @@ def RunInputlist(spec: dict<any>): number
     index += 1
   endfor
   var title = get(spec, 'title', 'OpenCode')
-  var prompt = title .. '\n' .. join(labels, "\n")
+  var prompt = [title] + labels
   var choice = inputlist(prompt)
   if choice >= 1
     var cb = get(spec, 'callback', v:null)

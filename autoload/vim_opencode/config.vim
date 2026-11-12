@@ -26,7 +26,7 @@ export const Defaults: dict<any> = {
     operator: '<Leader>or',
     toggle: '<Leader>ot',
     open: '<Leader>oo',
-    explain: '<Leader>oe',
+    explain: '<Leader>ox',
     session_list: '<Leader>osl',
     session_pick: '<Leader>osp',
     session_new: '<Leader>osn',

@@ -278,7 +278,7 @@ let g:vim_opencode_config = {
   \   ask: '<Leader>oa',
   \   toggle: '<Leader>ot',
   \   open: '<Leader>oo',
-  \   explain: '<Leader>oe',
+  \   explain: '<Leader>ox',
   \   session_list: '<Leader>osl',
   \   session_pick: '<Leader>osp',
   \   session_new: '<Leader>osn',
@@ -312,7 +312,7 @@ All shortcuts start with `<Leader>o` followed by an obvious letter. Single-lette
 | `<Leader>oa` | `:Opencode ask` | Interactively compose a prompt before sending |
 | `<Leader>ot` | `:Opencode toggle` | Show/hide the split panel |
 | `<Leader>oo` | `:Opencode open` | Open the conversation panel (right by default) |
-| `<Leader>oe` | `:Opencode ask @this explain` | Explain the current selection or cursor location |
+| `<Leader>ox` | `:Opencode ask @this explain` | Explain the current selection or cursor location |
 | `<Leader>oh` | `:Opencode help` | Open command reference |
 | `<Leader>oH` | `:Opencode health` | Verify environment and connection |
 | `<Leader>ocp` | `:Opencode palette` | Interactive palette reaching every `:Opencode` command |
