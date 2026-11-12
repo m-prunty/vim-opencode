@@ -250,7 +250,7 @@ def g:VimOpencodePopupScrollCurrent(info: dict<any>)
   call popup_setpos(winid, {line: new_line})
 enddef
 
-def CurrentPopupId(): number
+export def CurrentPopupId(): number
   call EnsureGlobals()
   for id in keys(g:vim_opencode_popup_specs)
     if popup_isvisible(id)
@@ -260,13 +260,13 @@ def CurrentPopupId(): number
   return 0
 enddef
 
-def CurrentPopup(): number
+export def CurrentPopup(): number
   return CurrentPopupId()
 enddef
 
 # Return the 1-based line position within the current popup's rendered buffer,
 # or 0 if no popup is visible.
-def CurrentPopupLine(): number
+export def CurrentPopupLine(): number
   var winid = CurrentPopupId()
   if winid == 0
     return 0
@@ -276,7 +276,7 @@ enddef
 
 # Return the offset (title + border lines) above the first item row for the
 # current popup, or 0 if none.
-def CurrentPopupOffset(): number
+export def CurrentPopupOffset(): number
   var winid = CurrentPopupId()
   if winid == 0
     return 0
