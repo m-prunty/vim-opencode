@@ -119,7 +119,7 @@ export def Run(spec: dict<any>): number
   var footer = get(spec, 'footer', '')
 
   var result = BuildLines(spec)
-  var lines = result[0]
+  var lines: list<string> = result[0]
 
   var winid = popup_create(lines, {
     \ title: title,
