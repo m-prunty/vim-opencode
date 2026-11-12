@@ -49,6 +49,12 @@ Then source the plugin or restart Vim:
 runtime plugin/vim-opencode.vim
 ```
 
+Generate help tags (optional, for `:help vim-opencode`):
+
+```vim
+helptags doc
+```
+
 ## Quick start
 
 ```vim

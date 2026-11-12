@@ -3,7 +3,7 @@ vim9script
 # Pending permission/question requests and their small, non-blocking UI.
 
 import autoload 'vim_opencode/events.vim' as events
-import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/util.vim' as util
@@ -134,7 +134,7 @@ def Reply(token: string, action: string, always: bool = false)
     return
   endif
   var reply = always ? 'always' : action
-  v2.ReplyPermission(conn, item.sessionID, item.id, reply,
+  active.ReplyPermission(conn, item.sessionID, item.id, reply,
     (value: any, status: number) => {
       Remove(item.id)
       events.EmitLocal('permission.replied', {requestID: item.id, reply: reply})
@@ -153,7 +153,7 @@ def AnswerQuestion(id: string, answer: string)
     util.EchoError('not connected; run :Opencode server connect')
     return
   endif
-  v2.ReplyQuestion(conn, item.sessionID, item.id, answer,
+  active.ReplyQuestion(conn, item.sessionID, item.id, answer,
     (value: any, status: number) => {
       Remove(item.id)
       events.EmitLocal('question.answered', {requestID: item.id, answer: answer})

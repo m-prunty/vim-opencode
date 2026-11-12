@@ -7,11 +7,11 @@ import autoload 'vim_opencode/catalog.vim' as catalog
 import autoload 'vim_opencode/context.vim' as context
 import autoload 'vim_opencode/discovery.vim' as discovery
 import autoload 'vim_opencode/events.vim' as events
-import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/util.vim' as util
 
-var active: dict<any> = {}
+var qc_state: dict<any> = {}
 var installed = false
 
 export def Setup()
@@ -23,7 +23,7 @@ export def Setup()
 enddef
 
 export def Active(): bool
-  return !empty(active)
+  return !empty(qc_state)
 enddef
 
 export def Start(instruction: string, line_range: list<number>)
@@ -46,7 +46,7 @@ export def Start(instruction: string, line_range: list<number>)
     util.EchoError('quick chat could not determine a line range')
     return
   endif
-  active = {ctx: ctx, from: from, to: to, original: getbufline(ctx.buf, from, to), instruction: instruction, sessionID: '', cancelled: false}
+  qc_state = {ctx: ctx, from: from, to: to, original: getbufline(ctx.buf, from, to), instruction: instruction, sessionID: '', cancelled: false}
   context.Highlight(ctx)
   var conn = server.Current()
   if type(conn) != v:t_none
@@ -58,49 +58,49 @@ export def Start(instruction: string, line_range: list<number>)
 enddef
 
 export def Cancel()
-  if empty(active)
+  if empty(qc_state)
     return
   endif
-  var item = active
-  active = {}
+  var item = qc_state
+  qc_state = {}
   context.Resume(item.ctx)
   var conn = server.Current()
   if type(conn) != v:t_none && item.sessionID !=# ''
-    v2.DeleteSession(conn, item.sessionID, Noop, Noop)
+    active.DeleteSession(conn, item.sessionID, Noop, Noop)
   endif
   events.EmitLocal('quickchat.cancelled', {})
   util.EchoInfo('quick chat cancelled; buffer unchanged')
 enddef
 
 def Create(conn: any)
-  if empty(active)
+  if empty(qc_state)
     return
   endif
-  v2.CreateSession(conn, {title: 'vim-opencode quick chat'},
+  active.CreateSession(conn, {title: 'vim-opencode quick chat'},
     (value: any, status: number) => {
-      var id = v2.SessionId(value)
+      var id = active.SessionId(value)
       if id ==# ''
         Fail('temporary session did not return an id')
         return
       endif
-      active.sessionID = id
-      var ctx = active.ctx
-      var source = join(active.original, "\n")
-      var prompt = 'Return only the complete replacement text for this line range. Do not explain.\n\nInstruction: ' .. active.instruction .. '\n\nText:\n' .. source
+      qc_state.sessionID = id
+      var ctx = qc_state.ctx
+      var source = join(qc_state.original, "\n")
+      var prompt = 'Return only the complete replacement text for this line range. Do not explain.\n\nInstruction: ' .. qc_state.instruction .. '\n\nText:\n' .. source
       var rendered = context.Render(prompt, ctx)
       var opts = catalog.PromptOptions()
-      v2.Prompt(conn, id, rendered, Noop, (message: string, exit: number, code: number) => Fail(message), opts)
-      events.EmitLocal('quickchat.started', {sessionID: id, from: active.from, to: active.to})
+      active.Prompt(conn, id, rendered, Noop, (message: string, exit: number, code: number) => Fail(message), opts)
+      events.EmitLocal('quickchat.started', {sessionID: id, from: qc_state.from, to: qc_state.to})
     },
     (message: string, exit: number, status: number) => Fail(message))
 enddef
 
 def OnEvent(event: any)
-  if empty(active) || get(event, 'type', '') !=# 'session.text.ended'
+  if empty(qc_state) || get(event, 'type', '') !=# 'session.text.ended'
     return
   endif
   var data = get(event, 'data', {})
-  if type(data) != v:t_dict || get(data, 'sessionID', '') !=# active.sessionID
+  if type(data) != v:t_dict || get(data, 'sessionID', '') !=# qc_state.sessionID
     return
   endif
   var text = get(data, 'text', '')
@@ -111,10 +111,10 @@ def OnEvent(event: any)
 enddef
 
 def Apply(text: string)
-  if empty(active) || active.cancelled
+  if empty(qc_state) || qc_state.cancelled
     return
   endif
-  var item = active
+  var item = qc_state
   var replacement = split(substitute(text, '^\s*\|\s*$', '', 'g'), '\n', 1)
   var buf = item.ctx.buf
   if !bufloaded(buf) || len(replacement) == 0
@@ -125,21 +125,21 @@ def Apply(text: string)
   deletebufline(buf, item.from, item.to)
   appendbufline(buf, item.from - 1, replacement)
   context.Clear(item.ctx)
-  active = {}
+  qc_state = {}
   var conn = server.Current()
   if type(conn) != v:t_none && item.sessionID !=# ''
-    v2.DeleteSession(conn, item.sessionID, Noop, Noop)
+    active.DeleteSession(conn, item.sessionID, Noop, Noop)
   endif
   events.EmitLocal('quickchat.applied', {from: item.from, to: item.to})
   util.EchoInfo('quick chat edit applied; use u to undo')
 enddef
 
 def Fail(message: string)
-  if empty(active)
+  if empty(qc_state)
     return
   endif
-  var item = active
-  active = {}
+  var item = qc_state
+  qc_state = {}
   context.Resume(item.ctx)
   util.EchoError(message)
   events.EmitLocal('quickchat.failed', {message: message})

@@ -12,4 +12,4 @@ __pycache__/
 *.log
 
 # Generated help tags
-doc/tags
+# doc/tags is committed so :help works immediately; regenerate with :helptags doc

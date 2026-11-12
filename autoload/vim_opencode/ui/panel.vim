@@ -11,7 +11,7 @@ import autoload 'vim_opencode/config.vim' as config
 import autoload 'vim_opencode/context.vim' as context
 import autoload 'vim_opencode/events.vim' as events
 import autoload 'vim_opencode/prompt.vim' as prompt
-import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/ui/render.vim' as render
@@ -638,7 +638,7 @@ def EnsureSessionAsync()
     return
   endif
   loading_session = true
-  v2.ResolveSession(conn, util.Cwd(),
+  active.ResolveSession(conn, util.Cwd(),
     (session: any) => {
       loading_session = false
       AttachSession(conn, session)
@@ -666,7 +666,7 @@ def AttachSession(conn: any, session: any)
 enddef
 
 def LoadSnapshot(conn: any, session_id: string)
-  v2.LoadMessages(conn, session_id, SNAPSHOT_LIMIT,
+  active.LoadMessages(conn, session_id, SNAPSHOT_LIMIT,
     (value: any, status: number) => {
       # Ignore a response that arrives after the user switched or deleted the
       # session; otherwise stale data could resurrect the old transcript.

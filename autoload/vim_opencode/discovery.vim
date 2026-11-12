@@ -7,7 +7,7 @@ vim9script
 
 import autoload 'vim_opencode/config.vim' as config
 import autoload 'vim_opencode/events.vim' as events
-import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/util.vim' as util
 
@@ -196,7 +196,7 @@ def TryCandidates(candidates: list<dict<any>>, index: number, callbacks: dict<an
     max_reconnect_delay_ms: cfg.max_reconnect_delay_ms,
   })
 
-  v2.Probe(conn,
+  active.Probe(conn,
     (info: any, status: number) => CandidateSucceeded(conn, info, callbacks),
     (message: string, exit: number, status: number) => TryCandidates(candidates, index + 1, callbacks, polling))
 enddef
@@ -212,7 +212,7 @@ def CandidateSucceeded(conn: any, info: any, callbacks: dict<any>)
 enddef
 
 def Subscribe(conn: any)
-  v2.Subscribe(conn,
+  active.Subscribe(conn,
     (event: any) => OnEvent(conn, event),
     (message: string, exit: number, status: number) => OnStreamError(conn, message),
     () => OnStreamClose(conn))

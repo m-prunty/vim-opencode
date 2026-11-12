@@ -6,6 +6,7 @@ import autoload 'vim_opencode/catalog.vim' as catalog
 import autoload 'vim_opencode/config.vim' as config
 import autoload 'vim_opencode/context.vim' as context
 import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/events.vim' as events
 import autoload 'vim_opencode/health.vim' as health
 import autoload 'vim_opencode/prompt.vim' as prompt
 import autoload 'vim_opencode/quickchat.vim' as quickchat
@@ -41,7 +42,7 @@ const COMMANDS: dict<dict<any>> = {
   review: {phase: 'P6', usage: 'review [list|add|clear]', description: 'Manage review comments', implemented: true},
   quickchat: {phase: 'P7', usage: 'quickchat [instruction]', description: 'Edit the current range in place', implemented: true},
   tab: {phase: 'P8', usage: 'tab [list|new|open|close]', description: 'Manage panel tabs', implemented: true},
-  debug: {phase: 'P10', usage: 'debug [on|off|dump]', description: 'Inspect plugin state', implemented: false},
+  debug: {phase: 'P10', usage: 'debug [on|off|dump]', description: 'Inspect plugin state', implemented: true},
 }
 
 const ARG_COMPLETIONS: dict<list<string>> = {
@@ -114,6 +115,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       panel.OpenTarget(trim(rest))
     elseif name ==# 'close'
       panel.CloseTarget(trim(rest))
+    elseif name ==# 'debug'
+      DebugCommand(rest)
     elseif has_key(COMMANDS, name)
       NotImplemented(name, COMMANDS[name].phase)
     else
@@ -493,6 +496,43 @@ enddef
 
 def NotImplemented(name: string, phase: string)
   util.EchoError(name .. ' is not implemented yet (' .. phase .. '); see :Opencode help')
+enddef
+
+# :Opencode debug [on|off|dump] — inspect and control plugin state.
+def DebugCommand(rest: string)
+  var argument = trim(rest)
+  if argument ==# '' || argument ==# 'status'
+    var cfg = config.Get()
+    var conn = server.Current()
+    var connected = type(conn) != v:t_none
+    echomsg 'vim-opencode debug status'
+    echomsg '  protocol: ' .. cfg.protocol
+    echomsg '  log_level: ' .. cfg.log_level
+    echomsg '  server_url: ' .. (cfg.server_url ==# '' ? '(none)' : cfg.server_url)
+    echomsg '  connected: ' .. (connected ? 'yes' : 'no')
+    if connected
+      echomsg '  server: ' .. conn.Url() .. ' (version ' .. conn.Version() .. ')'
+    endif
+    var last = events.Last()
+    echomsg '  last_event: ' .. (type(last) == v:t_none ? '(none)' : events.Type(last))
+    return
+  endif
+  if argument ==# 'on'
+    config.Setup(config.DeepMerge(config.Get(), {log_level: 'debug'}))
+    echomsg 'vim-opencode: debug logging enabled'
+    return
+  endif
+  if argument ==# 'off'
+    config.Setup(config.DeepMerge(config.Get(), {log_level: 'warn'}))
+    echomsg 'vim-opencode: debug logging disabled'
+    return
+  endif
+  if argument ==# 'dump'
+    var cfg = config.Get()
+    echomsg util.JsonEncode(cfg)
+    return
+  endif
+  util.EchoError('unknown debug argument "' .. argument .. '"; try on, off, dump, or status')
 enddef
 
 def PluginVersion(): string

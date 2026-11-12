@@ -8,7 +8,7 @@ vim9script
 # model and agent are persisted under XDG_STATE_HOME so they survive restarts.
 
 import autoload 'vim_opencode/events.vim' as events
-import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/util.vim' as util
@@ -44,11 +44,11 @@ export def RefreshModels(on_success: any = v:null, on_error: any = v:null)
   if type(conn) == v:t_none
     return
   endif
-  v2.ListModels(conn,
+  active.ListModels(conn,
     (value: any, status: number) => {
       var normalized = NormalizeModels(value)
       if empty(normalized)
-        v2.ListProviders(conn,
+        active.ListProviders(conn,
           (providers: any, provider_status: number) => {
             models = NormalizeModels(providers)
             Done(on_success, models)
@@ -67,7 +67,7 @@ export def RefreshAgents(on_success: any = v:null, on_error: any = v:null)
   if type(conn) == v:t_none
     return
   endif
-  v2.ListAgents(conn,
+  active.ListAgents(conn,
     (value: any, status: number) => {
       agents = NormalizeAgents(value)
       Done(on_success, agents)
@@ -80,7 +80,7 @@ export def RefreshCommands(on_success: any = v:null, on_error: any = v:null)
   if type(conn) == v:t_none
     return
   endif
-  v2.ListCommands(conn,
+  active.ListCommands(conn,
     (value: any, status: number) => {
       commands = NormalizeCommands(value)
       Done(on_success, commands)
@@ -368,7 +368,7 @@ export def RunCommand(name: string, arguments: string = '')
     RunInSession(conn, id, name, arguments)
     return
   endif
-  v2.ResolveSession(conn, util.Cwd(),
+  active.ResolveSession(conn, util.Cwd(),
     (session: any) => {
       var session_id = type(session) == v:t_dict ? get(session, 'id', '') : ''
       if type(session_id) != v:t_string || session_id ==# ''
@@ -381,7 +381,7 @@ export def RunCommand(name: string, arguments: string = '')
 enddef
 
 def RunInSession(conn: any, session_id: string, name: string, arguments: string)
-  v2.RunCommand(conn, session_id, name, arguments, PromptOptions(),
+  active.RunCommand(conn, session_id, name, arguments, PromptOptions(),
     (value: any, status: number) => {
       events.EmitLocal('command.ran', {sessionID: session_id, command: name, arguments: arguments})
       util.EchoInfo('ran /' .. name .. (arguments ==# '' ? '' : ' ' .. arguments))

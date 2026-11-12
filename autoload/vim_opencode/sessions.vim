@@ -8,7 +8,7 @@ vim9script
 # or echoed directly.
 
 import autoload 'vim_opencode/events.vim' as events
-import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/ui/panel.vim' as panel
@@ -43,7 +43,7 @@ export def Refresh(on_success: any = v:null, on_error: any = v:null)
     Fail(on_error, 'not connected; run :Opencode server connect')
     return
   endif
-  v2.ListSessions(conn, util.Cwd(),
+  active.ListSessions(conn, util.Cwd(),
     (sessions: any) => {
       cache = type(sessions) == v:t_list ? sessions : []
       Invoke(on_success, [cache])
@@ -163,9 +163,9 @@ export def New(title: string = '')
   if title !=# ''
     opts.title = title
   endif
-  v2.CreateSession(conn, opts,
+  active.CreateSession(conn, opts,
     (value: any, status: number) => {
-      var session = v2.SessionValue(value)
+      var session = active.SessionValue(value)
       var id = get(session, 'id', '')
       if id ==# ''
         util.EchoError('the server did not return a session id')
@@ -200,7 +200,7 @@ export def Rename(token: string, title: string = '')
       return
     endif
   endif
-  v2.RenameSession(conn, id, new_title,
+  active.RenameSession(conn, id, new_title,
     (value: any, status: number) => {
       UpdateCachedTitle(id, new_title)
       Refresh()
@@ -231,7 +231,7 @@ export def Delete(token: string, force: bool = false)
       return
     endif
   endif
-  v2.DeleteSession(conn, id,
+  active.DeleteSession(conn, id,
     (value: any, status: number) => {
       cache = filter(cache, (_, item: dict<any>) => get(item, 'id', '') !=# id)
       if state.SessionId() ==# id
@@ -263,9 +263,9 @@ export def Fork(token: string = '')
     util.EchoError('no session to fork; run :Opencode session open')
     return
   endif
-  v2.ForkSession(conn, id,
+  active.ForkSession(conn, id,
     (value: any, status: number) => {
-      var created = v2.SessionValue(value)
+      var created = active.SessionValue(value)
       var new_id = get(created, 'id', '')
       Refresh()
       if new_id !=# ''
