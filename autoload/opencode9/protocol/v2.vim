@@ -3,16 +3,17 @@ vim9script
 # OpenCode V2 protocol adapter.
 
 import autoload 'opencode9/util.vim' as util
+import autoload 'opencode9/server.vim' as server
 
 const INFO_PATH = '/api/info'
 const EVENT_PATH = '/api/event'
 const HEARTBEAT_MS = 20000
 
-export def Probe(conn: any, on_success: any, on_error: any): number
+export def Probe(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request(INFO_PATH, 'GET', v:null, on_success, on_error)
 enddef
 
-export def Subscribe(conn: any, on_event: any, on_error: any, on_close: any): number
+export def Subscribe(conn: server.Connection, on_event: any, on_error: any, on_close: any): number
   return conn.Stream(EVENT_PATH, {
     heartbeat_ms: HEARTBEAT_MS,
     on_event: on_event,
@@ -50,7 +51,7 @@ export def EventData(event: any): any
 enddef
 
 # Resolve the most recent root session for a directory.
-export def ResolveSession(conn: any, directory: string, on_success: any, on_error: any): number
+export def ResolveSession(conn: server.Connection, directory: string, on_success: any, on_error: any): number
   var path = '/api/session?directory=' .. util.UrlEncode(directory) .. '&order=desc&parentID=null'
   return conn.Request(path, 'GET', v:null,
     (response: any, status: number) => HandleSessions(response, directory, on_success, on_error),
@@ -78,7 +79,7 @@ def HandleSessions(response: any, directory: string, on_success: any, on_error: 
 enddef
 
 # List the non-archived sessions for a directory, newest first.
-export def ListSessions(conn: any, directory: string, on_success: any, on_error: any): number
+export def ListSessions(conn: server.Connection, directory: string, on_success: any, on_error: any): number
   var path = '/api/session?directory=' .. util.UrlEncode(directory) .. '&order=desc'
   return conn.Request(path, 'GET', v:null,
     (response: any, status: number) => HandleSessionList(response, on_success, on_error),
@@ -108,7 +109,7 @@ enddef
 
 # Create a session for the connection directory. opts may carry a title and
 # parentID; the directory is added when the caller did not provide one.
-export def CreateSession(conn: any, opts: dict<any>, on_success: any, on_error: any): number
+export def CreateSession(conn: server.Connection, opts: dict<any>, on_success: any, on_error: any): number
   var body = deepcopy(opts)
   if !has_key(body, 'directory')
     body.directory = conn.directory
@@ -116,7 +117,7 @@ export def CreateSession(conn: any, opts: dict<any>, on_success: any, on_error: 
   return conn.Request('/api/session', 'POST', body, on_success, on_error)
 enddef
 
-export def RenameSession(conn: any, session_id: string, title: string, on_success: any, on_error: any): number
+export def RenameSession(conn: server.Connection, session_id: string, title: string, on_success: any, on_error: any): number
   return conn.Request(
     '/api/session/' .. util.UrlEncode(session_id),
     'PATCH',
@@ -125,7 +126,7 @@ export def RenameSession(conn: any, session_id: string, title: string, on_succes
     on_error)
 enddef
 
-export def DeleteSession(conn: any, session_id: string, on_success: any, on_error: any): number
+export def DeleteSession(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/api/session/' .. util.UrlEncode(session_id),
     'DELETE',
@@ -134,11 +135,11 @@ export def DeleteSession(conn: any, session_id: string, on_success: any, on_erro
     on_error)
 enddef
 
-export def InterruptSession(conn: any, session_id: string, on_success: any, on_error: any): number
+export def InterruptSession(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/interrupt', 'POST', {}, on_success, on_error)
 enddef
 
-export def ForkSession(conn: any, session_id: string, on_success: any, on_error: any): number
+export def ForkSession(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/api/session/' .. util.UrlEncode(session_id) .. '/fork',
     'POST',
@@ -167,32 +168,32 @@ enddef
 
 # List models, agents, providers and server commands. The raw response is
 # returned to the caller, which normalizes the shapes it understands.
-export def ListModels(conn: any, on_success: any, on_error: any): number
+export def ListModels(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/api/model', 'GET', v:null, on_success, on_error)
 enddef
 
-export def ListProviders(conn: any, on_success: any, on_error: any): number
+export def ListProviders(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/api/provider', 'GET', v:null, on_success, on_error)
 enddef
 
-export def ListAgents(conn: any, on_success: any, on_error: any): number
+export def ListAgents(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/api/agent', 'GET', v:null, on_success, on_error)
 enddef
 
-export def ListCommands(conn: any, on_success: any, on_error: any): number
+export def ListCommands(conn: server.Connection, on_success: any, on_error: any): number
   return conn.Request('/api/command', 'GET', v:null, on_success, on_error)
 enddef
 
-export def ReplyPermission(conn: any, session_id: string, request_id: string, reply: string, on_success: any, on_error: any): number
+export def ReplyPermission(conn: server.Connection, session_id: string, request_id: string, reply: string, on_success: any, on_error: any): number
   return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/permission/' .. util.UrlEncode(request_id) .. '/reply', 'POST', {reply: reply}, on_success, on_error)
 enddef
 
-export def ReplyQuestion(conn: any, session_id: string, request_id: string, answer: string, on_success: any, on_error: any): number
+export def ReplyQuestion(conn: server.Connection, session_id: string, request_id: string, answer: string, on_success: any, on_error: any): number
   return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/question/' .. util.UrlEncode(request_id) .. '/reply', 'POST', {answer: answer}, on_success, on_error)
 enddef
 
 # Run a server command in a session.
-export def RunCommand(conn: any, session_id: string, name: string, arguments: string, opts: dict<any>, on_success: any, on_error: any): number
+export def RunCommand(conn: server.Connection, session_id: string, name: string, arguments: string, opts: dict<any>, on_success: any, on_error: any): number
   var body: dict<any> = {command: name, arguments: arguments}
   if type(get(opts, 'model', v:null)) != v:t_none
     body.model = opts.model
@@ -213,7 +214,7 @@ enddef
 
 # Send a plain-text prompt to a session. opts may carry a model dictionary
 # and/or an agent name.
-export def Prompt(conn: any, session_id: string, text: string, on_success: any, on_error: any, opts: dict<any> = {}): number
+export def Prompt(conn: server.Connection, session_id: string, text: string, on_success: any, on_error: any, opts: dict<any> = {}): number
   var body: dict<any> = {text: text}
   if type(get(opts, 'model', v:null)) != v:t_none
     body.model = opts.model
@@ -233,12 +234,12 @@ export def Prompt(conn: any, session_id: string, text: string, on_success: any, 
 enddef
 
 # Load a page of messages for the transcript panel.
-export def LoadMessages(conn: any, session_id: string, limit: number, on_success: any, on_error: any): number
+export def LoadMessages(conn: server.Connection, session_id: string, limit: number, on_success: any, on_error: any): number
   var path = '/api/session/' .. util.UrlEncode(session_id) .. '/message?limit=' .. limit
   return conn.Request(path, 'GET', v:null, on_success, on_error)
 enddef
 
-export def SessionDiff(conn: any, session_id: string, on_success: any, on_error: any): number
+export def SessionDiff(conn: server.Connection, session_id: string, on_success: any, on_error: any): number
   return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/diff', 'GET', v:null, on_success, on_error)
 enddef
 
