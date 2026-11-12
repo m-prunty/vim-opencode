@@ -6,6 +6,7 @@ import autoload 'vim_opencode/events.vim' as events
 import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/ui/popup.vim' as popup
 import autoload 'vim_opencode/util.vim' as util
 
 var pending: list<dict<any>> = []
@@ -102,24 +103,47 @@ export def Ask()
     labels->add(printf('[%d] %s: %s', index, item.kind, item.title))
     index += 1
   endfor
-  var choice = inputlist(labels)
-  if choice < 1 || choice > len(pending)
-    return
-  endif
-  var item = pending[choice - 1]
-  if item.kind ==# 'question'
-    var answer = input(item.title .. ': ')
-    AnswerQuestion(item.id, answer)
-  else
-    var action = inputlist(['Allow once', 'Allow always', 'Deny'])
-    if action == 1
-      Accept(item.id)
-    elseif action == 2
-      Always(item.id)
-    elseif action == 3
-      Deny(item.id)
-    endif
-  endif
+  popup.Run({
+    \ items: labels,
+    \ title: 'OpenCode permissions',
+    \ border: 'rounded',
+    \ width: 60,
+    \ height: min([len(labels) + 4, 15]),
+    \ callback: (selection: string) => {
+      var choice = 0
+      var m = matchstr(selection, '^\\[\(\d\+\)\\]')
+      if m !=# ''
+        choice = str2nr(substitute(m, '[\\[\]]', '', 'g'))
+      endif
+      if choice < 1 || choice > len(pending)
+        return
+      endif
+      var item = pending[choice - 1]
+      if item.kind ==# 'question'
+        var answer = input(item.title .. ': ')
+        if answer !=# ''
+          AnswerQuestion(item.id, answer)
+        endif
+      else
+        popup.Run({
+          \ items: ['Allow once', 'Allow always', 'Deny'],
+          \ title: 'Permission: ' .. item.title,
+          \ border: 'rounded',
+          \ width: 40,
+          \ height: 6,
+          \ callback: (action: string) => {
+            if action ==# 'Allow once'
+              Accept(item.id)
+            elseif action ==# 'Allow always'
+              Always(item.id)
+            elseif action ==# 'Deny'
+              Deny(item.id)
+            endif
+          },
+          \ })
+      endif
+    },
+    \ })
 enddef
 
 def Reply(token: string, action: string, always: bool = false)

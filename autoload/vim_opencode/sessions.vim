@@ -12,6 +12,7 @@ import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
 import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/ui/popup.vim' as popup
 import autoload 'vim_opencode/util.vim' as util
 
 var cache: list<dict<any>> = []
@@ -94,7 +95,27 @@ def PrintList(sessions: any)
     lines->add(Format(session, index))
     index += 1
   endfor
-  echomsg join(lines, "\n")
+  var footer = 'Enter pick | C-P preview | C-Q quit'
+  popup.Run({
+    \ items: lines,
+    \ title: 'OpenCode sessions',
+    \ border: 'rounded',
+    \ width: 70,
+    \ height: min([len(lines) + 4, 20]),
+    \ callback: (selection: string) => {
+      var session = {}
+      for s in cache
+        if stridx(selection, get(s, 'id', '')) >= 0
+          session = s
+          break
+        endif
+      endfor
+      if !empty(session)
+        OpenSession(session)
+      endif
+    },
+    \ footer: footer,
+    \ })
 enddef
 
 # Show a popup menu of cached sessions and open the chosen one.
@@ -114,21 +135,27 @@ def ShowPicker(sessions: any)
     labels->add(Format(session, index))
     index += 1
   endfor
-  if !has('popupwin') || !exists('*popup_menu')
-    var choice = inputlist(labels)
-    if choice >= 1 && choice <= len(cache)
-      OpenSession(cache[choice - 1])
-    endif
-    return
-  endif
-  popup_menu(labels, {
-    title: 'OpenCode sessions',
-    callback: (id: number, result: number) => {
-      if result >= 1 && result <= len(cache)
-        OpenSession(cache[result - 1])
+  var footer = 'Enter pick | C-P preview | C-Q quit'
+  popup.Run({
+    \ items: labels,
+    \ title: 'OpenCode sessions',
+    \ border: 'rounded',
+    \ width: 70,
+    \ height: min([len(labels) + 4, 20]),
+    \ callback: (selection: string) => {
+      var session = {}
+      for s in cache
+        if stridx(selection, get(s, 'id', '')) >= 0
+          session = s
+          break
+        endif
+      endfor
+      if !empty(session)
+        OpenSession(session)
       endif
     },
-  })
+    \ footer: footer,
+    \ })
 enddef
 
 # Open a session by id, numeric index or id prefix. With an empty token, follow

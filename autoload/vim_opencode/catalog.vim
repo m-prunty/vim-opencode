@@ -11,6 +11,7 @@ import autoload 'vim_opencode/events.vim' as events
 import autoload 'vim_opencode/protocol/active.vim' as active
 import autoload 'vim_opencode/server.vim' as server
 import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/ui/popup.vim' as popup
 import autoload 'vim_opencode/util.vim' as util
 
 const PLACEHOLDERS: list<string> = [
@@ -318,21 +319,33 @@ def ShowPicker(kind: string, items: any)
     index += 1
   endfor
   var title = 'OpenCode ' .. kind .. 's'
-  if !has('popupwin') || !exists('*popup_menu')
-    var choice = inputlist(labels)
-    if choice >= 1
-      ChooseEntry(kind, choice)
-    endif
-    return
-  endif
-  popup_menu(labels, {
-    title: title,
-    callback: (id: number, result: number) => {
-      if result >= 1
-        ChooseEntry(kind, result)
+  var footer = 'Enter pick | C-P preview | C-Q quit'
+  popup.Run({
+    \ items: labels,
+    \ title: title,
+    \ border: 'rounded',
+    \ width: 70,
+    \ height: min([len(labels) + 4, 20]),
+    \ callback: (selection: string) => {
+      var choice = 0
+      var m = matchstr(selection, '^\\[\(\d\+\)\\]')
+      if m !=# ''
+        choice = str2nr(substitute(m, '[\\[\]]', '', 'g'))
+      endif
+      if choice < 1 || choice > len(items)
+        return
+      endif
+      var entry = items[choice - 1]
+      if kind ==# 'model'
+        SelectModel(GetString(entry, 'key'))
+      elseif kind ==# 'agent'
+        SelectAgent(GetString(entry, 'name'))
+      else
+        RunFromPicker(entry)
       endif
     },
-  })
+    \ footer: footer,
+    \ })
 enddef
 
 def ChooseEntry(kind: string, index: number)
