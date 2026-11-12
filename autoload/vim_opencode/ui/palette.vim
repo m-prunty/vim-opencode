@@ -147,7 +147,38 @@ function! PaletteHelp() abort
 enddef
 
 function! PalettePreview() abort
-  util.EchoInfo('preview: not yet implemented')
+  var winid = popup.CurrentPopupId()
+  if winid == 0
+    return
+  endif
+  var line = popup.CurrentPopupLine()
+  var offset = popup.CurrentPopupOffset()
+  var idx = line - offset
+  var items = Filtered()
+  if idx < 1 || idx > len(items)
+    return
+  endif
+  var entry = items[idx - 1]
+  var lines: list<string> = []
+  lines->add('kind: ' .. get(entry, 'kind', ''))
+  lines->add('name: ' .. get(entry, 'name', ''))
+  var desc = get(entry, 'desc', '')
+  if desc !=# ''
+    lines->add('desc: ' .. desc)
+  endif
+  var usage = get(entry, 'usage', '')
+  if usage !=# ''
+    lines->add('usage: :Opencode ' .. usage)
+  endif
+  popup.Run({
+    \ items: lines,
+    \ title: 'Preview',
+    \ border: 'rounded',
+    \ width: 50,
+    \ height: min([len(lines) + 4, 10]),
+    \ callback: (selection: string) => {},
+    \ footer: 'C-Q close',
+    \ })
 enddef
 
 function! PaletteNext() abort

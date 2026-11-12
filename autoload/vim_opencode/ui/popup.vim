@@ -237,6 +237,38 @@ export def CloseAll()
   g:vim_opencode_popup_specs = {}
 enddef
 
+# Return the id of the currently visible popup, or 0.
+export def CurrentPopupId(): number
+  for id in keys(g:vim_opencode_popup_specs)
+    if popup_isvisible(id)
+      return id
+    endif
+  endfor
+  return 0
+enddef
+
+# Return the 1-based line position within the current popup's rendered buffer,
+# or 0 if no popup is visible.
+export def CurrentPopupLine(): number
+  var winid = CurrentPopupId()
+  if winid == 0
+    return 0
+  endif
+  return popup_getpos(winid).line
+enddef
+
+# Return the offset (title + border lines) above the first item row for the
+# current popup, or 0 if none.
+export def CurrentPopupOffset(): number
+  var winid = CurrentPopupId()
+  if winid == 0
+    return 0
+  endif
+  var spec = get(g:vim_opencode_popup_specs, winid, {})
+  var result = BuildLines(spec)
+  return result[1] + result[2]
+enddef
+
 def RunInputlist(spec: dict<any>): number
   var items = get(spec, 'items', [])
   if empty(items)
