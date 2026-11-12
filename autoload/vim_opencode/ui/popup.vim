@@ -140,7 +140,7 @@ export def Run(spec: dict<any>): number
   return winid
 enddef
 
-def InstallPopupMappings(info: dict<any>): any
+def InstallPopupMappings(info: dict<any>)
   var winid = get(info, 'winid', 0)
   var spec = get(info, 'spec', {})
   var base: dict<any> = {

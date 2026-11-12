@@ -1,5 +1,6 @@
 :Opencode	vim-opencode.txt	/*:Opencode*
 g:vim_opencode_config	vim-opencode.txt	/*g:vim_opencode_config*
+gui-config-keys	vim-opencode.txt	/*gui-config-keys*
 vim-opencode-command-list	vim-opencode.txt	/*vim-opencode-command-list*
 vim-opencode-commands	vim-opencode.txt	/*vim-opencode-commands*
 vim-opencode-config-keys	vim-opencode.txt	/*vim-opencode-config-keys*
@@ -10,12 +11,19 @@ vim-opencode-development	vim-opencode.txt	/*vim-opencode-development*
 vim-opencode-discovery	vim-opencode.txt	/*vim-opencode-discovery*
 vim-opencode-events	vim-opencode.txt	/*vim-opencode-events*
 vim-opencode-functions	vim-opencode.txt	/*vim-opencode-functions*
+vim-opencode-gui	vim-opencode.txt	/*vim-opencode-gui*
 vim-opencode-introduction	vim-opencode.txt	/*vim-opencode-introduction*
+vim-opencode-palette	vim-opencode.txt	/*vim-opencode-palette*
 vim-opencode-panel	vim-opencode.txt	/*vim-opencode-panel*
 vim-opencode-panel-commands	vim-opencode.txt	/*vim-opencode-panel-commands*
 vim-opencode-panel-layout	vim-opencode.txt	/*vim-opencode-panel-layout*
 vim-opencode-panel-mappings	vim-opencode.txt	/*vim-opencode-panel-mappings*
+vim-opencode-panel-right	vim-opencode.txt	/*vim-opencode-panel-right*
+vim-opencode-panel-scroll	vim-opencode.txt	/*vim-opencode-panel-scroll*
 vim-opencode-panel-streaming	vim-opencode.txt	/*vim-opencode-panel-streaming*
+vim-opencode-peek	vim-opencode.txt	/*vim-opencode-peek*
+vim-opencode-pickers	vim-opencode.txt	/*vim-opencode-pickers*
+vim-opencode-preview	vim-opencode.txt	/*vim-opencode-preview*
 vim-opencode-requirements	vim-opencode.txt	/*vim-opencode-requirements*
 vim-opencode-session-commands	vim-opencode.txt	/*vim-opencode-session-commands*
 vim-opencode-sessions	vim-opencode.txt	/*vim-opencode-sessions*
