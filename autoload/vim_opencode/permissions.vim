@@ -109,44 +109,52 @@ export def Ask()
     \ border: 'rounded',
     \ width: 60,
     \ height: min([len(labels) + 4, 15]),
-    \ callback: (selection: string) => {
-      var choice = 0
-      var m = matchstr(selection, '^\\[\(\d\+\)\\]')
-      if m !=# ''
-        choice = str2nr(substitute(m, '[\\[\]]', '', 'g'))
-      endif
-      if choice < 1 || choice > len(pending)
-        return
-      endif
-      var item = pending[choice - 1]
-      if item.kind ==# 'question'
-        var answer = input(item.title .. ': ')
-        if answer !=# ''
-          AnswerQuestion(item.id, answer)
-        endif
-      else
-        var pspec: dict<any> = {
-          \ items: ['Allow once', 'Allow always', 'Deny'],
-          \ title: 'Permission: ' .. item.title,
-          \ border: 'rounded',
-          \ width: 40,
-          \ height: 6,
-          \ callback: (action: string) => {
-            if action ==# 'Allow once'
-              Accept(item.id)
-            elseif action ==# 'Allow always'
-              Always(item.id)
-            elseif action ==# 'Deny'
-              Deny(item.id)
-            endif
-          },
-          \ }
-        popup.Run(pspec)
-      endif
-    },
+    \ callback: (sel: string) => PermissionsAskSelect(sel),
     \ footer: footer,
     \ }
   popup.Run(spec)
+enddef
+
+def PermissionsAskSelect(selection: string)
+  var choice = 0
+  var m = matchstr(selection, '^\\[\(\d\+\)\\]')
+  if m !=# ''
+    choice = str2nr(substitute(m, '[\\[\]]', '', 'g'))
+  endif
+  if choice < 1 || choice > len(pending)
+    return
+  endif
+  var item = pending[choice - 1]
+  if item.kind ==# 'question'
+    var answer = input(item.title .. ': ')
+    if answer !=# ''
+      AnswerQuestion(item.id, answer)
+    endif
+  else
+    PermissionsAskPermission(item)
+  endif
+enddef
+
+def PermissionsAskPermission(item: dict<any>)
+  var pspec: dict<any> = {
+    \ items: ['Allow once', 'Allow always', 'Deny'],
+    \ title: 'Permission: ' .. item.title,
+    \ border: 'rounded',
+    \ width: 40,
+    \ height: 6,
+    \ callback: (action: string) => PermissionsAskPermissionReply(action, item.id),
+    \ }
+  popup.Run(pspec)
+enddef
+
+def PermissionsAskPermissionReply(action: string, id: string)
+  if action ==# 'Allow once'
+    Accept(id)
+  elseif action ==# 'Allow always'
+    Always(id)
+  elseif action ==# 'Deny'
+    Deny(id)
+  endif
 enddef
 
 def Reply(token: string, action: string, always: bool = false)
