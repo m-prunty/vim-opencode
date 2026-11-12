@@ -244,18 +244,45 @@ enddef
 # Listing and pickers
 
 export def ListModels()
-  RefreshModels((items: any) => PrintEntries('model', items, ModelLabel()),
+  RefreshModels((items: any) => ListPopup('model', items),
     (message: string) => util.EchoError(message))
 enddef
 
 export def ListAgents()
-  RefreshAgents((items: any) => PrintEntries('agent', items, AgentLabel()),
+  RefreshAgents((items: any) => ListPopup('agent', items),
     (message: string) => util.EchoError(message))
 enddef
 
 export def ListCommands()
-  RefreshCommands((items: any) => PrintEntries('command', items, ''),
+  RefreshCommands((items: any) => ListPopup('command', items),
     (message: string) => util.EchoError(message))
+enddef
+
+# Render a list of catalog entries in a popup (no action on Enter).
+def ListPopup(kind: string, items: any)
+  if type(items) != v:t_list || empty(items)
+    util.EchoInfo('no ' .. kind .. 's available')
+    return
+  endif
+  var labels: list<string> = []
+  var index = 1
+  for entry in items
+    labels->add(FormatEntry(kind, entry, index, ''))
+    index += 1
+  endfor
+  var title = 'OpenCode ' .. kind .. 's'
+  var footer = 'C-Q close'
+  popup.Run({
+    \ spec: {
+      \ items: labels,
+      \ title: title,
+      \ border: 'rounded',
+      \ width: 70,
+      \ height: min([len(labels) + 4, 20]),
+      \ callback: (sel) => {},
+      \ footer: footer,
+      \ },
+    \ })
 enddef
 
 export def PickModel()

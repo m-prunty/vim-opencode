@@ -15,7 +15,7 @@ const SINGLE_BORDER_CHARS: list<string> = ['+', '-', '+', '|', '+', '-', '+', '|
 
 var open_popups: list<number> = []
 
-def EnsureGlobals(): any
+def EnsureGlobals()
   if !has_key(g:, 'vim_opencode_popup_specs')
     g:vim_opencode_popup_specs = {}
   endif
