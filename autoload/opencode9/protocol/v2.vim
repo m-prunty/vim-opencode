@@ -87,6 +87,12 @@ export def Prompt(conn: any, session_id: string, text: string, on_success: any, 
     on_error)
 enddef
 
+# Load a page of messages for the transcript panel.
+export def LoadMessages(conn: any, session_id: string, limit: number, on_success: any, on_error: any): number
+  var path = '/api/session/' .. util.UrlEncode(session_id) .. '/message?limit=' .. limit
+  return conn.Request(path, 'GET', v:null, on_success, on_error)
+enddef
+
 def Invoke(callback: any, args: list<any>)
   if type(callback) == v:t_func
     call(callback, args)
