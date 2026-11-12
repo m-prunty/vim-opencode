@@ -31,6 +31,10 @@ export def Start(instruction: string, line_range: list<number>)
     util.EchoError('a quick chat edit is already running')
     return
   endif
+  if trim(instruction) ==# ''
+    util.EchoError('quick chat requires an instruction')
+    return
+  endif
   var ctx = context.Capture(line_range)
   if !filereadable(bufname(ctx.buf))
     util.EchoError('quick chat requires a writable file buffer')
