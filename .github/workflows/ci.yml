@@ -20,3 +20,10 @@ jobs:
 
       - name: Run headless smoke tests
         run: ./test/run.sh
+
+      - name: Vim9 defcompile check
+        run: |
+          vim -Nu NONE -es -i NONE \
+            --cmd "set runtimepath^=$PWD" \
+            -c "defcompile" \
+            -c "qa"
