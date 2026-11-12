@@ -3,10 +3,13 @@ vim9script
 # Command table, parsing and dispatch for :Opencode.
 
 import autoload 'opencode9/config.vim' as config
+import autoload 'opencode9/context.vim' as context
 import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/health.vim' as health
 import autoload 'opencode9/prompt.vim' as prompt
 import autoload 'opencode9/server.vim' as server
+import autoload 'opencode9/state.vim' as state
+import autoload 'opencode9/ui/panel.vim' as panel
 import autoload 'opencode9/util.vim' as util
 
 const COMMANDS: dict<dict<any>> = {
@@ -19,10 +22,10 @@ const COMMANDS: dict<dict<any>> = {
   prompt: {phase: 'P2', usage: 'prompt [text]', description: 'Send a prompt with context placeholders', implemented: true},
   ask: {phase: 'P2', usage: 'ask [text]', description: 'Prompt for text and send it', implemented: true},
   operator: {phase: 'P2', usage: 'operator', description: 'Send the selected range', implemented: true},
-  context: {phase: 'P2', usage: 'context [show|clear]', description: 'Inspect or clear captured context', implemented: false},
-  toggle: {phase: 'P3', usage: 'toggle', description: 'Toggle the conversation panel', implemented: false},
-  open: {phase: 'P3', usage: 'open [input|output|panel]', description: 'Open a panel window', implemented: false},
-  close: {phase: 'P3', usage: 'close [input|output|panel]', description: 'Close a panel window', implemented: false},
+  context: {phase: 'P2', usage: 'context [show|clear]', description: 'Inspect or clear captured context', implemented: true},
+  toggle: {phase: 'P3', usage: 'toggle', description: 'Toggle the conversation panel', implemented: true},
+  open: {phase: 'P3', usage: 'open [input|output|panel]', description: 'Open a panel window', implemented: true},
+  close: {phase: 'P3', usage: 'close [input|output|panel]', description: 'Close a panel window', implemented: true},
   permission: {phase: 'P5', usage: 'permission [accept|accept_all|deny]', description: 'Answer pending permission requests', implemented: false},
   diff: {phase: 'P5', usage: 'diff [accept|reject]', description: 'Review the active edit diff', implemented: false},
   quickchat: {phase: 'P7', usage: 'quickchat', description: 'Edit the current range in place', implemented: false},
@@ -70,6 +73,14 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       AskCommand(rest, range)
     elseif name ==# 'operator'
       OperatorCommand(rest)
+    elseif name ==# 'context'
+      ContextCommand(rest, range)
+    elseif name ==# 'toggle'
+      panel.Toggle()
+    elseif name ==# 'open'
+      panel.OpenTarget(trim(rest))
+    elseif name ==# 'close'
+      panel.CloseTarget(trim(rest))
     elseif has_key(COMMANDS, name)
       NotImplemented(name, COMMANDS[name].phase)
     else
@@ -171,6 +182,31 @@ def ShowConfig(rest: string)
   else
     echomsg util.JsonEncode(value)
   endif
+enddef
+
+def ContextCommand(rest: string, range: list<number>)
+  var argument = trim(rest)
+  if argument ==# '' || argument ==# 'show'
+    var ctx = context.Capture(range)
+    var lines: list<string> = []
+    for placeholder in context.Placeholders()
+      var rendered = context.Render(placeholder, ctx)
+      if rendered ==# placeholder
+        lines->add(placeholder .. ': (unavailable)')
+      else
+        lines->add(placeholder .. ': ' .. rendered)
+      endif
+    endfor
+    echomsg join(lines, "\n")
+    return
+  endif
+  if argument ==# 'clear'
+    state.Clear()
+    var session = state.SessionId()
+    echomsg 'opencode9: transcript cleared' .. (session ==# '' ? '' : ' for ' .. session)
+    return
+  endif
+  util.EchoError('unknown context command "' .. argument .. '"; try show or clear')
 enddef
 
 def PromptCommand(rest: string, range: list<number>)
