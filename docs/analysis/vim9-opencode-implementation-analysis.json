@@ -442,7 +442,7 @@
       ],
       "module_layout": [
         {
-          "path": "plugin/opencode9.vim",
+          "path": "plugin/vim-opencode.vim",
           "purpose": "Load guard, :Opencode command, default mappings, augroup, highlight setup."
         },
         {
@@ -668,7 +668,7 @@
       "effort": "1-2 person-days",
       "goal": "A loadable Vim9 plugin with config, commands, completion, logging and a test harness.",
       "steps": [
-        "Create plugin/opencode9.vim with a load guard, :Opencode command, -nargs/-range/-complete=custom, and default mappings behind a flag.",
+        "Create plugin/vim-opencode.vim with a load guard, :Opencode command, -nargs/-range/-complete=custom, and default mappings behind a flag.",
         "Create config.vim: defaults dict, deep-merge, validation, keymap tables, XDG path helpers.",
         "Create util.vim: JSON wrappers, URL encoding, temp files, logging, version compare, shell escaping.",
         "Create commands.vim: intent table, parse positional/subcommands/options, dispatch, error formatting.",
@@ -676,7 +676,7 @@
         "Add doc/opencode9.txt skeleton and syntax/ftplugin placeholders."
       ],
       "files": [
-        "plugin/opencode9.vim",
+        "plugin/vim-opencode.vim",
         "autoload/opencode9/config.vim",
         "autoload/opencode9/util.vim",
         "autoload/opencode9/commands.vim",

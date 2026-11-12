@@ -1,6 +1,6 @@
 vim9script
 
-# opencode9.vim - a Vim 9.1-native OpenCode client.
+# vim-opencode.vim - a Vim 9.1-native OpenCode client.
 
 if exists('g:loaded_opencode9')
   finish

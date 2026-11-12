@@ -22,7 +22,7 @@ def CheckContains(haystack: string, needle: string, message: string)
 enddef
 
 try
-  runtime plugin/opencode9.vim
+  runtime plugin/vim-opencode.vim
 
   # Plugin loading and command surface.
   Check(get(g:, 'loaded_opencode9', 0) == 1, 'plugin did not set g:loaded_opencode9')

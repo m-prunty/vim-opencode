@@ -70,8 +70,8 @@ jobs:
             -c "defcompile autoload/opencode9/ui/render.vim" \
             -c "defcompile ftplugin/opencode9_input.vim" \
             -c "defcompile ftplugin/opencode9_output.vim" \
-            -c "defcompile plugin/opencode9.vim" \
+            -c "defcompile plugin/vim-opencode.vim" \
             -c "qa!" || echo "defcompile warnings may be non-fatal"
 
       - name: Source plugin check
-        run: vim -Nu NONE -es -i NONE --cmd "set runtimepath^=$PWD" -c "source plugin/opencode9.vim" -c "qa!"
+        run: vim -Nu NONE -es -i NONE --cmd "set runtimepath^=$PWD" -c "source plugin/vim-opencode.vim" -c "qa!"

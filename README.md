@@ -46,7 +46,7 @@ set runtimepath+=/path/to/vim-opencode
 Then source the plugin or restart Vim:
 
 ```vim
-runtime plugin/opencode9.vim
+runtime plugin/vim-opencode.vim
 ```
 
 ## Quick start

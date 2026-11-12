@@ -354,7 +354,7 @@ let g:opencode9_config = {
   \ },
   \}
 
-runtime plugin/opencode9.vim
+runtime plugin/vim-opencode.vim
 
 " Then in Vim:
 :Opencode health
