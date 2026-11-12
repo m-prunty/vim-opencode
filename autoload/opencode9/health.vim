@@ -48,6 +48,7 @@ export def Report(): list<string>
   lines->add(ModuleStatus('diff', 'autoload/opencode9/ui/diff.vim', 'P5'))
   lines->add(ModuleStatus('review', 'autoload/opencode9/review.vim', 'P6'))
   lines->add(ModuleStatus('quickchat', 'autoload/opencode9/quickchat.vim', 'P7'))
+  lines->add(ModuleStatus('tabs', 'autoload/opencode9/tabs.vim', 'P8'))
 
   var doc = globpath(&runtimepath, 'doc/opencode9.txt', true, true)
   lines->add(Status(!empty(doc), 'documentation', 'doc/opencode9.txt'))

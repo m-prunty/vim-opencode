@@ -13,6 +13,7 @@ import autoload 'opencode9/permissions.vim' as permissions
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/sessions.vim' as sessions
 import autoload 'opencode9/state.vim' as state
+import autoload 'opencode9/tabs.vim' as tabs
 import autoload 'opencode9/ui/panel.vim' as panel
 import autoload 'opencode9/ui/diff.vim' as diff
 import autoload 'opencode9/review.vim' as review
@@ -39,6 +40,7 @@ const COMMANDS: dict<dict<any>> = {
   diff: {phase: 'P5', usage: 'diff [open|accept|reject|close]', description: 'Review the active edit diff', implemented: true},
   review: {phase: 'P6', usage: 'review [list|add|clear]', description: 'Manage review comments', implemented: true},
   quickchat: {phase: 'P7', usage: 'quickchat [instruction]', description: 'Edit the current range in place', implemented: true},
+  tab: {phase: 'P8', usage: 'tab [list|new|open|close]', description: 'Manage panel tabs', implemented: true},
   debug: {phase: 'P10', usage: 'debug [on|off|dump]', description: 'Inspect plugin state', implemented: false},
 }
 
@@ -96,6 +98,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       Review(rest)
     elseif name ==# 'quickchat'
       quickchat.Start(trim(rest), range)
+    elseif name ==# 'tab'
+      Tab(rest)
     elseif name ==# 'prompt'
       PromptCommand(rest, range)
     elseif name ==# 'ask'
@@ -359,6 +363,29 @@ def Review(rest: string)
     endif
   else
     util.EchoError('unknown review action "' .. action .. '"')
+  endif
+enddef
+
+def Tab(rest: string)
+  var argument = trim(rest)
+  var action = matchstr(argument, '^\S+')
+  var token = trim(substitute(argument, '^\S+\s*', '', ''))
+  if action ==# '' || action ==# 'list'
+    var lines: list<string> = []
+    var index = 1
+    for item in tabs.List()
+      lines->add(tabs.Format(item, index))
+      index += 1
+    endfor
+    echomsg join(lines, "\n")
+  elseif action ==# 'new'
+    tabs.New(token)
+  elseif action ==# 'open' || action ==# 'select'
+    tabs.Select(token)
+  elseif action ==# 'close'
+    tabs.Close(token)
+  else
+    util.EchoError('unknown tab action "' .. action .. '"')
   endif
 enddef
 

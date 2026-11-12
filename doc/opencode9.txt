@@ -81,6 +81,7 @@ review ...              List, add or clear review comments. Comments are
                         attached to the next prompt.
 quickchat [instruction] Replace the current range with a focused assistant
                         response. The replacement is whole-line and undoable.
+tab ...                 List, create, select or close persistent panel tabs.
 quickchat               Replace the current range in place. (P7)
 debug ...               Inspect plugin state. (P10)
 

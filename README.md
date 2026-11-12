@@ -21,7 +21,8 @@ selection, rename, fork and deletion. Permissions and diff review arrive in
 selection, rename, fork and deletion, model/agent catalogs, server commands,
 permission replies, single-file edit review, deduplicated rich context and
 review comments attached to prompts.
-It also includes a cancellable quick-chat inline-edit workflow.
+It also includes a cancellable quick-chat inline-edit workflow and persistent
+project-scoped panel tabs.
 
 See `docs/analysis/vim9-opencode-implementation-analysis.json` for the
 implementation plan and `doc/opencode9.txt` for user documentation.
