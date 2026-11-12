@@ -1,4 +1,4 @@
-# opencode9.vim
+# vim-opencode
 
 A Vim 9.1-native client for [OpenCode](https://opencode.ai), built around the
 OpenCode V2 HTTP and SSE APIs.

@@ -1,4 +1,4 @@
-# opencode9.vim — Feature Reference
+# vim-opencode — Feature Reference
 
 Complete list of all implemented features, recommended example uses, and
 default shortcuts for the most useful commands.
@@ -341,19 +341,6 @@ autocmd User OpencodeEvent:permission.asked echo 'Permission requested: ' .. str
 ## Installation Quick Start
 
 ```vim
-" Add to your .vimrc
-let g:opencode9_config = {
-  \ server_url: 'http://127.0.0.1:18767',
-  \ default_mappings: v:true,
-  \ keymaps: {
-  \   prompt: '<Leader>op',
-  \   ask: '<Leader>oa',
-  \   toggle: '<Leader>ot',
-  \   help: '<Leader>oh',
-  \   health: '<Leader>oH',
-  \ },
-  \}
-
 runtime plugin/vim-opencode.vim
 
 " Then in Vim:
