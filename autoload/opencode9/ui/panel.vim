@@ -194,8 +194,8 @@ def ApplyBufferOptions(buf: number, editable: bool)
   setbufvar(buf, '&buftype', 'nofile')
   setbufvar(buf, '&bufhidden', 'hide')
   setbufvar(buf, '&swapfile', false)
-  setbufvar(buf, '&modifiable', editable)
-  setbufvar(buf, '&readonly', !editable)
+  setbufvar(buf, '&modifiable', editable ? v:true : v:false)
+  setbufvar(buf, '&readonly', editable ? v:false : v:true)
   setbufvar(buf, '&foldmethod', 'manual')
   setbufvar(buf, '&foldcolumn', 1)
   setbufvar(buf, '&wrap', true)
@@ -403,7 +403,10 @@ export def Flush()
     i += 1
   endwhile
 
-  setbufvar(output_buf, '&modifiable', true)
+  # The output buffer is readonly/nomodifiable (set by the ftplugin when the
+  # window opens). Temporarily allow changes so Flush can rewrite it.
+  setbufvar(output_buf, '&modifiable', v:true)
+  setbufvar(output_buf, '&readonly', v:false)
   # Clearing all manual folds before a rewrite keeps stale fold regions from
   # surviving into the new content.
   setbufvar(output_buf, '&foldmethod', 'indent')
@@ -418,8 +421,8 @@ export def Flush()
   ReplaceFrom(start_line, new_lines)
   ApplyProps(chunks, common, start_line)
   CreateFolds(chunks, common)
-  setbufvar(output_buf, '&modifiable', false)
-  setbufvar(output_buf, '&readonly', true)
+  setbufvar(output_buf, '&modifiable', v:false)
+  setbufvar(output_buf, '&readonly', v:true)
 
   rendered = chunks
   var message_lines = render.MessageLines(chunks)
@@ -476,19 +479,19 @@ def ReplaceFrom(start_line: number, new_lines: list<string>)
   var lines = empty(new_lines) ? [''] : new_lines
   var count = BufferLineCount(output_buf)
   if start_line <= 1
-    setbufline(output_buf, 1, lines[0])
+    silent! call setbufline(output_buf, 1, lines[0])
     if len(lines) > 1
-      appendbufline(output_buf, 1, lines[1 :])
+      silent! call appendbufline(output_buf, 1, lines[1 :])
     endif
     if count > len(lines)
-      deletebufline(output_buf, len(lines) + 1, '$')
+      silent! call deletebufline(output_buf, len(lines) + 1, '$')
     endif
     return
   endif
   if start_line <= count
-    deletebufline(output_buf, start_line, '$')
+    silent! call deletebufline(output_buf, start_line, '$')
   endif
-  appendbufline(output_buf, start_line - 1, lines)
+  silent! call appendbufline(output_buf, start_line - 1, lines)
 enddef
 
 def EnsurePropTypes()
