@@ -3,8 +3,8 @@ vim9script
 # Minimal, safe single-file edit review. The proposed text is shown in a
 # scratch split; accepting is the only operation that writes the target file.
 
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/util.vim' as util
 
 var active: dict<any> = {}
 var original_buf = -1
@@ -50,7 +50,7 @@ export def Open()
   original_win = win_getid()
   execute 'belowright split'
   proposed_win = win_getid()
-  proposed_buf = bufadd('opencode9://proposed/' .. fnamemodify(path, ':t'))
+  proposed_buf = bufadd('vim-opencode://proposed/' .. fnamemodify(path, ':t'))
   bufload(proposed_buf)
   setbufvar(proposed_buf, '&buftype', 'nofile')
   setbufvar(proposed_buf, '&bufhidden', 'wipe')
@@ -109,8 +109,8 @@ export def Close()
 enddef
 
 def InstallMappings()
-  execute 'nnoremap <buffer><silent> <Leader>da <Cmd>call g:Opencode9DiffAccept()<CR>'
-  execute 'nnoremap <buffer><silent> <Leader>dr <Cmd>call g:Opencode9DiffReject()<CR>'
+  execute 'nnoremap <buffer><silent> <Leader>da <Cmd>call g:VimOpencodeDiffAccept()<CR>'
+  execute 'nnoremap <buffer><silent> <Leader>dr <Cmd>call g:VimOpencodeDiffReject()<CR>'
 enddef
 
 def OnEvent(event: any)
@@ -130,10 +130,10 @@ def OnEvent(event: any)
   endif
 enddef
 
-def g:Opencode9DiffAccept()
+def g:VimOpencodeDiffAccept()
   Accept()
 enddef
 
-def g:Opencode9DiffReject()
+def g:VimOpencodeDiffReject()
   Reject()
 enddef

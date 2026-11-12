@@ -5,11 +5,11 @@ vim9script
 # Order: configured URL, OpenCode background registrations (newest first),
 # then an optional configured start command followed by polling.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/util.vim' as util
 
 const POLL_INTERVAL_MS = 500
 const POLL_ATTEMPTS = 10
@@ -135,7 +135,7 @@ export def Start(on_error: any): bool
     start_job = v:null
     return false
   endif
-  g:opencode9_server_job = start_job
+  g:vim_opencode_server_job = start_job
   return true
 enddef
 
@@ -144,8 +144,8 @@ export def StopStarted()
     job_stop(start_job, 'term')
   endif
   start_job = v:null
-  if exists('g:opencode9_server_job')
-    unlet g:opencode9_server_job
+  if exists('g:vim_opencode_server_job')
+    unlet g:vim_opencode_server_job
   endif
 enddef
 

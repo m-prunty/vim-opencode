@@ -393,7 +393,7 @@
     ]
   },
   "recommended_target": {
-    "name": "opencode9.vim",
+    "name": "vim-opencode.vim",
     "strategy": "A Vim9-native, V2-first, layered client. Start with a small bridge core (transport, discovery, context, prompt, operator, events, permissions, diff), then add a split-panel transcript and session tabs.",
     "why": [
       "It captures the highest-value workflows early: prompt with context, run commands, see events, approve permissions, review edits.",
@@ -446,95 +446,95 @@
           "purpose": "Load guard, :Opencode command, default mappings, augroup, highlight setup."
         },
         {
-          "path": "autoload/opencode9/config.vim",
+          "path": "autoload/vim-opencode/config.vim",
           "purpose": "Defaults, deep merge, validation, keymap tables."
         },
         {
-          "path": "autoload/opencode9/util.vim",
+          "path": "autoload/vim-opencode/util.vim",
           "purpose": "JSON, paths, URL encoding, temp files, logging, version compare, base64 fallback."
         },
         {
-          "path": "autoload/opencode9/transport.vim",
+          "path": "autoload/vim-opencode/transport.vim",
           "purpose": "curl job argv, request ids, response temp files, SSE stream, chunk parser, timeouts."
         },
         {
-          "path": "autoload/opencode9/discovery.vim",
+          "path": "autoload/vim-opencode/discovery.vim",
           "purpose": "Configured URL, service.json registrations, opencode CLI service commands, start callback, polling."
         },
         {
-          "path": "autoload/opencode9/server.vim",
+          "path": "autoload/vim-opencode/server.vim",
           "purpose": "Connection class: URL, auth, protocol, heartbeat, request/stream, shutdown."
         },
         {
-          "path": "autoload/opencode9/protocol/v2.vim",
+          "path": "autoload/vim-opencode/protocol/v2.vim",
           "purpose": "V2 endpoint operations and event normalization."
         },
         {
-          "path": "autoload/opencode9/protocol/v1.vim",
+          "path": "autoload/vim-opencode/protocol/v1.vim",
           "purpose": "Optional V1 adapter behind the same interface."
         },
         {
-          "path": "autoload/opencode9/state.vim",
+          "path": "autoload/vim-opencode/state.vim",
           "purpose": "Global state, per-session records, message/part maps, active session, subscriptions."
         },
         {
-          "path": "autoload/opencode9/events.vim",
+          "path": "autoload/vim-opencode/events.vim",
           "purpose": "SSE event dispatch, reducer hooks, User autocmd emission, status updates."
         },
         {
-          "path": "autoload/opencode9/context.vim",
+          "path": "autoload/vim-opencode/context.vim",
           "purpose": "Capture editor state; builders; placeholder scanner; path formatting; attachments."
         },
         {
-          "path": "autoload/opencode9/prompt.vim",
+          "path": "autoload/vim-opencode/prompt.vim",
           "purpose": "ask(), prompt(), operator(), submit, session resolution, context cleanup."
         },
         {
-          "path": "autoload/opencode9/commands.vim",
+          "path": "autoload/vim-opencode/commands.vim",
           "purpose": "Command table, parsing, dispatch, completion, lifecycle hooks."
         },
         {
-          "path": "autoload/opencode9/ui/panel.vim",
+          "path": "autoload/vim-opencode/ui/panel.vim",
           "purpose": "Input/output windows, focus, toggle, zoom, tab strip."
         },
         {
-          "path": "autoload/opencode9/ui/render.vim",
+          "path": "autoload/vim-opencode/ui/render.vim",
           "purpose": "Transcript model -> buffer lines, text properties, folds, debounce, scroll anchoring."
         },
         {
-          "path": "autoload/opencode9/ui/picker.vim",
+          "path": "autoload/vim-opencode/ui/picker.vim",
           "purpose": "popup_menu-based single/multi select, filtering, previews."
         },
         {
-          "path": "autoload/opencode9/ui/dialog.vim",
+          "path": "autoload/vim-opencode/ui/dialog.vim",
           "purpose": "Input, confirmation, permission choices, question answers."
         },
         {
-          "path": "autoload/opencode9/ui/diff.vim",
+          "path": "autoload/vim-opencode/ui/diff.vim",
           "purpose": ":diffpatch review, per-hunk mappings, accept/reject, comments/signs."
         },
         {
-          "path": "autoload/opencode9/health.vim",
+          "path": "autoload/vim-opencode/health.vim",
           "purpose": ":Opencode health checks."
         },
         {
-          "path": "ftplugin/opencode9_input.vim",
+          "path": "ftplugin/vim-opencode_input.vim",
           "purpose": "Input buffer mappings, completion, submit."
         },
         {
-          "path": "ftplugin/opencode9_output.vim",
+          "path": "ftplugin/vim-opencode_output.vim",
           "purpose": "Read-only transcript mappings, navigation, folds."
         },
         {
-          "path": "syntax/opencode9_output.vim",
+          "path": "syntax/vim-opencode_output.vim",
           "purpose": "Markdown-ish syntax, code fences, tool headings."
         },
         {
-          "path": "syntax/opencode9_diff.vim",
+          "path": "syntax/vim-opencode_diff.vim",
           "purpose": "Diff/review annotations if needed."
         },
         {
-          "path": "doc/opencode9.txt",
+          "path": "doc/vim-opencode.txt",
           "purpose": "Help, configuration, events, API."
         }
       ],
@@ -628,7 +628,7 @@
         "pickers": "popup_menu() for short lists; a custom popup buffer for filtering/preview/multi-select. If a fuzzy finder is available, an optional adapter can call it.",
         "dialogs": "popup_create() for permission/question dialogs; inputlist() for simple choices; input() for one-shot text.",
         "markdown": "syntax/markdown.vim plus conceal; custom syntax for tool headers, code fences and diffs. No Treesitter.",
-        "statusline": "%{opencode9#Statusline()} with icon and server host.",
+        "statusline": "%{vim-opencode#Statusline()} with icon and server host.",
         "notifications": "echomsg/echoerr plus optional popup_notification; avoid blocking dialogs during streaming."
       },
       "protocol": {
@@ -649,8 +649,8 @@
         "normalization": "Adapters return shared session/message/part/event shapes; UI never sees raw V1/V2 differences."
       },
       "persistence": {
-        "state_dir": "$XDG_STATE_HOME/opencode9 or ~/.local/state/opencode9",
-        "data_dir": "$XDG_DATA_HOME/opencode9 or ~/.local/share/opencode9",
+        "state_dir": "$XDG_STATE_HOME/vim-opencode or ~/.local/state/vim-opencode",
+        "data_dir": "$XDG_DATA_HOME/vim-opencode or ~/.local/share/vim-opencode",
         "files": [
           "history.jsonl (prompt history, global)",
           "panel.json (tabs/session/directory/draft metadata per project)",
@@ -673,15 +673,15 @@
         "Create util.vim: JSON wrappers, URL encoding, temp files, logging, version compare, shell escaping.",
         "Create commands.vim: intent table, parse positional/subcommands/options, dispatch, error formatting.",
         "Create health.vim and a headless smoke test script.",
-        "Add doc/opencode9.txt skeleton and syntax/ftplugin placeholders."
+        "Add doc/vim-opencode.txt skeleton and syntax/ftplugin placeholders."
       ],
       "files": [
         "plugin/vim-opencode.vim",
-        "autoload/opencode9/config.vim",
-        "autoload/opencode9/util.vim",
-        "autoload/opencode9/commands.vim",
-        "autoload/opencode9/health.vim",
-        "doc/opencode9.txt"
+        "autoload/vim-opencode/config.vim",
+        "autoload/vim-opencode/util.vim",
+        "autoload/vim-opencode/commands.vim",
+        "autoload/vim-opencode/health.vim",
+        "doc/vim-opencode.txt"
       ],
       "apis": [
         "vim9script",
@@ -718,11 +718,11 @@
         "Add :Opencode server status/connect/disconnect and health checks."
       ],
       "files": [
-        "autoload/opencode9/transport.vim",
-        "autoload/opencode9/discovery.vim",
-        "autoload/opencode9/server.vim",
-        "autoload/opencode9/protocol/v2.vim",
-        "autoload/opencode9/protocol/v1.vim (stub)"
+        "autoload/vim-opencode/transport.vim",
+        "autoload/vim-opencode/discovery.vim",
+        "autoload/vim-opencode/server.vim",
+        "autoload/vim-opencode/protocol/v2.vim",
+        "autoload/vim-opencode/protocol/v1.vim (stub)"
       ],
       "apis": [
         "job_start/out_cb/err_cb/exit_cb",
@@ -764,11 +764,11 @@
         "Add :Opencode ask/prompt/operator and visual mappings."
       ],
       "files": [
-        "autoload/opencode9/context.vim",
-        "autoload/opencode9/prompt.vim",
-        "autoload/opencode9/ui/dialog.vim",
-        "autoload/opencode9/protocol/v2.vim",
-        "autoload/opencode9/commands.vim"
+        "autoload/vim-opencode/context.vim",
+        "autoload/vim-opencode/prompt.vim",
+        "autoload/vim-opencode/ui/dialog.vim",
+        "autoload/vim-opencode/protocol/v2.vim",
+        "autoload/vim-opencode/commands.vim"
       ],
       "apis": [
         "getpos(\"'<\")/getpos(\"'>\")",
@@ -811,13 +811,13 @@
         "Add :Opencode toggle/open input/open output/close."
       ],
       "files": [
-        "autoload/opencode9/ui/panel.vim",
-        "autoload/opencode9/ui/render.vim",
-        "autoload/opencode9/state.vim",
-        "autoload/opencode9/events.vim",
-        "ftplugin/opencode9_input.vim",
-        "ftplugin/opencode9_output.vim",
-        "syntax/opencode9_output.vim"
+        "autoload/vim-opencode/ui/panel.vim",
+        "autoload/vim-opencode/ui/render.vim",
+        "autoload/vim-opencode/state.vim",
+        "autoload/vim-opencode/events.vim",
+        "ftplugin/vim-opencode_input.vim",
+        "ftplugin/vim-opencode_output.vim",
+        "syntax/vim-opencode_output.vim"
       ],
       "apis": [
         "bufadd/bufload/setbufvar",
@@ -856,10 +856,10 @@
         "Add basic child/parent session navigation if the server exposes it."
       ],
       "files": [
-        "autoload/opencode9/protocol/v2.vim",
-        "autoload/opencode9/ui/picker.vim",
-        "autoload/opencode9/state.vim",
-        "autoload/opencode9/commands.vim"
+        "autoload/vim-opencode/protocol/v2.vim",
+        "autoload/vim-opencode/ui/picker.vim",
+        "autoload/vim-opencode/state.vim",
+        "autoload/vim-opencode/commands.vim"
       ],
       "apis": [
         "GET /api/session",
@@ -900,10 +900,10 @@
         "Add :Opencode permission accept/accept_all/deny."
       ],
       "files": [
-        "autoload/opencode9/events.vim",
-        "autoload/opencode9/ui/dialog.vim",
-        "autoload/opencode9/ui/diff.vim",
-        "autoload/opencode9/protocol/v2.vim"
+        "autoload/vim-opencode/events.vim",
+        "autoload/vim-opencode/ui/dialog.vim",
+        "autoload/vim-opencode/ui/diff.vim",
+        "autoload/vim-opencode/protocol/v2.vim"
       ],
       "apis": [
         "popup_menu/popup_create",
@@ -942,11 +942,11 @@
         "Add a context item toggle UI (#-like picker) and clear actions."
       ],
       "files": [
-        "autoload/opencode9/context.vim",
-        "autoload/opencode9/state.vim",
-        "autoload/opencode9/ui/diff.vim",
-        "autoload/opencode9/ui/picker.vim",
-        "autoload/opencode9/prompt.vim"
+        "autoload/vim-opencode/context.vim",
+        "autoload/vim-opencode/state.vim",
+        "autoload/vim-opencode/ui/diff.vim",
+        "autoload/vim-opencode/ui/picker.vim",
+        "autoload/vim-opencode/prompt.vim"
       ],
       "apis": [
         "git diff --cached via systemlist",
@@ -984,10 +984,10 @@
         "Delete the temporary session unless a debug flag keeps it."
       ],
       "files": [
-        "autoload/opencode9/commands.vim",
-        "autoload/opencode9/prompt.vim",
-        "autoload/opencode9/context.vim",
-        "autoload/opencode9/ui/dialog.vim"
+        "autoload/vim-opencode/commands.vim",
+        "autoload/vim-opencode/prompt.vim",
+        "autoload/vim-opencode/context.vim",
+        "autoload/vim-opencode/ui/dialog.vim"
       ],
       "apis": [
         "getline/setline or appendbufline/deletebufline",
@@ -1025,10 +1025,10 @@
         "Add a prompt guard callback."
       ],
       "files": [
-        "autoload/opencode9/state.vim",
-        "autoload/opencode9/ui/panel.vim",
-        "autoload/opencode9/config.vim",
-        "autoload/opencode9/commands.vim"
+        "autoload/vim-opencode/state.vim",
+        "autoload/vim-opencode/ui/panel.vim",
+        "autoload/vim-opencode/config.vim",
+        "autoload/vim-opencode/commands.vim"
       ],
       "apis": [
         "json_encode/json_decode",
@@ -1064,10 +1064,10 @@
         "Add a startup drift check against /openapi.json where available."
       ],
       "files": [
-        "autoload/opencode9/protocol/v1.vim",
-        "autoload/opencode9/protocol/v2.vim",
-        "autoload/opencode9/events.vim",
-        "autoload/opencode9/server.vim"
+        "autoload/vim-opencode/protocol/v1.vim",
+        "autoload/vim-opencode/protocol/v2.vim",
+        "autoload/vim-opencode/events.vim",
+        "autoload/vim-opencode/server.vim"
       ],
       "apis": [
         "GET /global/health",
@@ -1104,7 +1104,7 @@
       "files": [
         "test/",
         ".github/workflows/ci.yml",
-        "doc/opencode9.txt",
+        "doc/vim-opencode.txt",
         "README.md"
       ],
       "apis": [

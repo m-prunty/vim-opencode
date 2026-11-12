@@ -2,9 +2,9 @@ vim9script
 
 # P9 smoke test: V1 adapter normalization shapes.
 
-import autoload 'opencode9/protocol/adapter.vim' as adapter
-import autoload 'opencode9/protocol/v1.vim' as v1
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/protocol/adapter.vim' as adapter
+import autoload 'vim_opencode/protocol/v1.vim' as v1
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 var result_dir = 'test/results'

@@ -1,8 +1,8 @@
 vim9script
 
-# Configuration defaults and validation for opencode9.vim.
+# Configuration defaults and validation for vim-opencode.vim.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 export const Defaults: dict<any> = {
   server_url: '',
@@ -15,7 +15,7 @@ export const Defaults: dict<any> = {
   connect_timeout_ms: 5000,
   reconnect_delay_ms: 1000,
   max_reconnect_delay_ms: 30000,
-  default_mappings: false,
+  default_mappings: true,
   log_level: 'warn',
   log_file: '',
   keymaps: {
@@ -55,19 +55,19 @@ export def Setup(user: dict<any>): dict<any>
   var merged = DeepMerge(deepcopy(Defaults), user)
   Validate(merged)
   Normalize(merged)
-  g:opencode9_config = merged
+  g:vim_opencode_config = merged
   return merged
 enddef
 
 # Return the active configuration, creating defaults when necessary.
 export def Get(): dict<any>
-  if !exists('g:opencode9_config')
+  if !exists('g:vim_opencode_config')
     return Setup({})
   endif
-  if type(g:opencode9_config) != v:t_dict
-    throw 'opencode9 config: g:opencode9_config must be a dictionary'
+  if type(g:vim_opencode_config) != v:t_dict
+    throw 'vim-opencode config: g:vim_opencode_config must be a dictionary'
   endif
-  return g:opencode9_config
+  return g:vim_opencode_config
 enddef
 
 # Look up a dotted configuration path, returning v:null when it is absent.
@@ -242,12 +242,12 @@ def Prefix(parent: string, key: string): string
 enddef
 
 def Fail(message: string)
-  throw 'opencode9 config: ' .. message
+  throw 'vim-opencode config: ' .. message
 enddef
 
 # Restore an unconfigured state. Primarily useful for tests.
 export def Reset()
-  if exists('g:opencode9_config')
-    unlet g:opencode9_config
+  if exists('g:vim_opencode_config')
+    unlet g:vim_opencode_config
   endif
 enddef

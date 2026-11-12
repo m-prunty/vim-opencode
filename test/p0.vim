@@ -2,10 +2,10 @@ vim9script
 
 # P0 headless smoke test. Run through test/run.sh.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/commands.vim' as commands
-import autoload 'opencode9/health.vim' as health
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/commands.vim' as commands
+import autoload 'vim_opencode/health.vim' as health
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 var script_dir = fnamemodify(expand('<sfile>'), ':p:h')
@@ -25,14 +25,14 @@ try
   runtime plugin/vim-opencode.vim
 
   # Plugin loading and command surface.
-  Check(get(g:, 'loaded_opencode9', 0) == 1, 'plugin did not set g:loaded_opencode9')
+  Check(get(g:, 'loaded_vim_opencode', 0) == 1, 'plugin did not set g:loaded_vim_opencode')
   Check(exists(':Opencode') == 2, ':Opencode command is not defined')
-  Check(type(g:opencode9_config) == v:t_dict, 'g:opencode9_config is not a dictionary')
-  Check(g:opencode9_config.request_timeout_ms == 30000, 'default request timeout is wrong')
-  Check(g:opencode9_config.panel.height == 20, 'default panel height is wrong')
+  Check(type(g:vim_opencode_config) == v:t_dict, 'g:vim_opencode_config is not a dictionary')
+  Check(g:vim_opencode_config.request_timeout_ms == 30000, 'default request timeout is wrong')
+  Check(g:vim_opencode_config.panel.height == 20, 'default panel height is wrong')
 
   # Version, help and config commands produce useful output.
-  CheckContains(execute('Opencode version'), 'opencode9.vim', 'version output')
+  CheckContains(execute('Opencode version'), 'vim-opencode.vim', 'version output')
   CheckContains(execute('Opencode help'), 'Usage: :Opencode', 'help output')
   CheckContains(execute('Opencode config log_level'), 'warn', 'config path output')
 
@@ -51,7 +51,7 @@ try
   var threw = false
   try
     config.Setup({request_timeout_ms: -1})
-  catch /opencode9 config/
+  catch /vim-opencode config/
     threw = true
   endtry
   Check(threw, 'invalid configuration did not raise a config error')
@@ -59,7 +59,7 @@ try
   var bad_url_threw = false
   try
     config.Setup({server_url: 'ftp://example.com'})
-  catch /opencode9 config/
+  catch /vim-opencode config/
     bad_url_threw = true
   endtry
   Check(bad_url_threw, 'invalid server_url did not raise a config error')
@@ -77,7 +77,7 @@ try
   var report = health.Report()
   Check(!empty(report), 'health report is empty')
   CheckContains(join(report, "\n"), 'config: loaded', 'health report')
-  CheckContains(execute('Opencode health'), 'opencode9.vim health', 'health command output')
+  CheckContains(execute('Opencode health'), 'vim-opencode.vim health', 'health command output')
 
   # Imported modules must compile under Vim 9.1.
   execute 'defcompile'

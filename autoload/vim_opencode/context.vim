@@ -2,7 +2,7 @@ vim9script
 
 # Editor context capture, path formatting and @placeholder expansion.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 const PLACEHOLDERS: list<string> = [
   '@diagnostics',

@@ -27,7 +27,7 @@ message capping, assert_equal-style tests, transport error formatting, and
 config validation.
 
 See `docs/analysis/vim9-opencode-implementation-analysis.json` for the
-implementation plan and `doc/opencode9.txt` for user documentation.
+implementation plan and `doc/vim-opencode.txt` for user documentation.
 
 ## Requirements
 

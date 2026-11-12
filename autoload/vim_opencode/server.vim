@@ -2,8 +2,8 @@ vim9script
 
 # Connection state and lifecycle for an OpenCode server.
 
-import autoload 'opencode9/transport.vim' as transport
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/transport.vim' as transport
+import autoload 'vim_opencode/util.vim' as util
 
 export class Connection
   var url: string
@@ -142,13 +142,13 @@ enddef
 
 export def SetCurrent(conn: any)
   current = conn
-  g:opencode9_connection = conn
+  g:vim_opencode_connection = conn
 enddef
 
 export def ClearCurrent()
   current = v:null
-  if exists('g:opencode9_connection')
-    unlet g:opencode9_connection
+  if exists('g:vim_opencode_connection')
+    unlet g:vim_opencode_connection
   endif
 enddef
 

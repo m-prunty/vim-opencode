@@ -6,7 +6,7 @@ vim9script
 # protocol differences. Each adapter normalizes its wire shapes into the
 # shared session/message/event model used by the rest of the plugin.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 # Return true when the adapter can probe a server for protocol information.
 export def CanProbe(): bool

@@ -2,22 +2,22 @@ vim9script
 
 # Command table, parsing and dispatch for :Opencode.
 
-import autoload 'opencode9/catalog.vim' as catalog
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/health.vim' as health
-import autoload 'opencode9/prompt.vim' as prompt
-import autoload 'opencode9/quickchat.vim' as quickchat
-import autoload 'opencode9/permissions.vim' as permissions
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/sessions.vim' as sessions
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/tabs.vim' as tabs
-import autoload 'opencode9/ui/panel.vim' as panel
-import autoload 'opencode9/ui/diff.vim' as diff
-import autoload 'opencode9/review.vim' as review
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/catalog.vim' as catalog
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/health.vim' as health
+import autoload 'vim_opencode/prompt.vim' as prompt
+import autoload 'vim_opencode/quickchat.vim' as quickchat
+import autoload 'vim_opencode/permissions.vim' as permissions
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/sessions.vim' as sessions
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/tabs.vim' as tabs
+import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/ui/diff.vim' as diff
+import autoload 'vim_opencode/review.vim' as review
+import autoload 'vim_opencode/util.vim' as util
 
 const COMMANDS: dict<dict<any>> = {
   help: {phase: 'P0', usage: 'help [doc]', description: 'Show this summary or open the help file', implemented: true},
@@ -168,14 +168,14 @@ enddef
 def Help(rest: string)
   if rest ==# 'doc'
     try
-      execute 'help opencode9'
+      execute 'help vim-opencode'
     catch
       util.EchoError('help file is not available; run :helptags doc')
     endtry
     return
   endif
 
-  echomsg 'opencode9.vim ' .. PluginVersion() .. ' on Vim ' .. VimVersion()
+  echomsg 'vim-opencode.vim ' .. PluginVersion() .. ' on Vim ' .. VimVersion()
   echomsg ''
   echomsg 'Usage: :Opencode [command] [arguments]'
   echomsg ''
@@ -190,7 +190,7 @@ def Help(rest: string)
 enddef
 
 def Version()
-  echomsg 'opencode9.vim ' .. PluginVersion() .. ' on Vim ' .. VimVersion()
+  echomsg 'vim-opencode.vim ' .. PluginVersion() .. ' on Vim ' .. VimVersion()
 enddef
 
 def ShowConfig(rest: string)
@@ -201,7 +201,7 @@ def ShowConfig(rest: string)
   endif
   if argument ==# 'validate'
     config.Validate(config.Get())
-    echomsg 'opencode9: configuration is valid'
+    echomsg 'vim-opencode: configuration is valid'
     return
   endif
 
@@ -236,7 +236,7 @@ def ContextCommand(rest: string, range: list<number>)
   if argument ==# 'clear'
     state.Clear()
     var session = state.SessionId()
-    echomsg 'opencode9: transcript cleared' .. (session ==# '' ? '' : ' for ' .. session)
+    echomsg 'vim-opencode: transcript cleared' .. (session ==# '' ? '' : ' for ' .. session)
     return
   endif
   util.EchoError('unknown context command "' .. argument .. '"; try show or clear')
@@ -299,7 +299,7 @@ def Session(rest: string, bang: bool)
     sessions.Fork(tail)
   elseif action ==# 'current'
     var id = sessions.Current()
-    echomsg 'opencode9: session ' .. (id ==# '' ? 'none' : id)
+    echomsg 'vim-opencode: session ' .. (id ==# '' ? 'none' : id)
   else
     util.EchoError('unknown session command "' .. action .. '"; try :Opencode session list')
   endif
@@ -316,7 +316,7 @@ def Permission(rest: string)
       lines->add(printf('[%d] %s  %s', index, item.id, item.title))
       index += 1
     endfor
-    echomsg empty(lines) ? 'opencode9: no pending permission requests' : join(lines, "\n")
+    echomsg empty(lines) ? 'vim-opencode: no pending permission requests' : join(lines, "\n")
   elseif action ==# 'ask'
     permissions.Ask()
   elseif action ==# 'accept'
@@ -351,7 +351,7 @@ def Review(rest: string)
   var tail = trim(substitute(argument, '^\S+\s*', '', ''))
   if action ==# '' || action ==# 'list'
     var text = review.Text()
-    echomsg text ==# '' ? 'opencode9: no review comments' : text
+    echomsg text ==# '' ? 'vim-opencode: no review comments' : text
   elseif action ==# 'clear'
     review.Clear()
   elseif action ==# 'add'
@@ -398,7 +398,7 @@ def Model(rest: string)
     catalog.PickModel()
   elseif action ==# 'current'
     var label = catalog.ModelLabel()
-    echomsg 'opencode9: model ' .. (label ==# '' ? 'not selected' : label)
+    echomsg 'vim-opencode: model ' .. (label ==# '' ? 'not selected' : label)
   elseif action ==# 'clear'
     catalog.ClearModel()
   else
@@ -415,7 +415,7 @@ def Agent(rest: string)
     catalog.PickAgent()
   elseif action ==# 'current'
     var label = catalog.AgentLabel()
-    echomsg 'opencode9: agent ' .. (label ==# '' ? 'not selected' : label)
+    echomsg 'vim-opencode: agent ' .. (label ==# '' ? 'not selected' : label)
   elseif action ==# 'clear'
     catalog.ClearAgent()
   else
@@ -443,11 +443,11 @@ enddef
 def ShowServerStatus()
   var conn = server.Current()
   if type(conn) == v:t_none
-    echomsg 'opencode9: not connected'
+    echomsg 'vim-opencode: not connected'
     return
   endif
   var status = server.Status()
-  echomsg printf('opencode9: %s version=%s connected=%s directory=%s',
+  echomsg printf('vim-opencode: %s version=%s connected=%s directory=%s',
     status.url,
     status.version ==# '' ? 'unknown' : status.version,
     status.connected ? 'yes' : 'no',
@@ -459,21 +459,21 @@ def ConnectServer()
     on_success: (conn: any, info: any) => ServerConnected(conn),
     on_error: (message: string) => util.EchoError(message),
   })
-  echomsg 'opencode9: discovering an OpenCode server...'
+  echomsg 'vim-opencode: discovering an OpenCode server...'
 enddef
 
 def ServerConnected(conn: any)
-  echomsg 'opencode9: connected to ' .. conn.Url() .. ' (version ' .. conn.Version() .. ')'
+  echomsg 'vim-opencode: connected to ' .. conn.Url() .. ' (version ' .. conn.Version() .. ')'
 enddef
 
 def DisconnectServer()
   var conn = server.Current()
   if type(conn) == v:t_none
-    echomsg 'opencode9: not connected'
+    echomsg 'vim-opencode: not connected'
     return
   endif
   server.Disconnect(conn)
-  echomsg 'opencode9: disconnected'
+  echomsg 'vim-opencode: disconnected'
 enddef
 
 def StartServer()
@@ -482,13 +482,13 @@ def StartServer()
     return
   endif
   if discovery.Start((message: string) => util.EchoError(message))
-    echomsg 'opencode9: server start requested'
+    echomsg 'vim-opencode: server start requested'
   endif
 enddef
 
 def StopServer()
   discovery.StopStarted()
-  echomsg 'opencode9: server start job stopped (if one was running)'
+  echomsg 'vim-opencode: server start job stopped (if one was running)'
 enddef
 
 def NotImplemented(name: string, phase: string)
@@ -496,7 +496,7 @@ def NotImplemented(name: string, phase: string)
 enddef
 
 def PluginVersion(): string
-  return get(g:, 'opencode9_version', '0.1.0-dev')
+  return get(g:, 'vim_opencode_version', '0.1.0-dev')
 enddef
 
 def VimVersion(): string

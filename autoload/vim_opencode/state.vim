@@ -6,7 +6,7 @@ vim9script
 # the V2 delta events used by the OpenCode server and the snapshot/part shapes
 # returned by the HTTP API, so the renderer never has to know the wire format.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 var session_id = ''
 var model = ''

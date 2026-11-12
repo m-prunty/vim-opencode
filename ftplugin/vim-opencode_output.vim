@@ -1,6 +1,6 @@
 vim9script
 
-# Settings for the opencode9 transcript output buffer.
+# Settings for the vim-opencode transcript output buffer.
 
 if exists('b:did_ftplugin')
   finish

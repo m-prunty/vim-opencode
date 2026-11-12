@@ -6,7 +6,7 @@ vim9script
 # SSE stream consumes newline-delimited curl output and dispatches complete
 # frames. Callbacks are global functions so Vim's job layer can reach them.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 var next_id = 0
 var requests: dict<dict<any>> = {}
@@ -38,9 +38,9 @@ export def Request(opts: dict<any>): number
 
   var args = BuildArgs(req, opts, false)
   var job = job_start(args, {
-    out_cb: 'g:Opencode9TransportOut',
-    err_cb: 'g:Opencode9TransportErr',
-    exit_cb: 'g:Opencode9TransportExit',
+    out_cb: 'g:VimOpencodeTransportOut',
+    err_cb: 'g:VimOpencodeTransportErr',
+    exit_cb: 'g:VimOpencodeTransportExit',
     out_mode: 'nl',
     stoponexit: 'term',
   })
@@ -84,9 +84,9 @@ export def Stream(opts: dict<any>): number
 
   var args = BuildArgs(req, opts, true)
   var job = job_start(args, {
-    out_cb: 'g:Opencode9TransportOut',
-    err_cb: 'g:Opencode9TransportErr',
-    exit_cb: 'g:Opencode9TransportExit',
+    out_cb: 'g:VimOpencodeTransportOut',
+    err_cb: 'g:VimOpencodeTransportErr',
+    exit_cb: 'g:VimOpencodeTransportExit',
     out_mode: 'nl',
     stoponexit: 'term',
   })
@@ -149,7 +149,7 @@ enddef
 def RequireString(opts: dict<any>, key: string): string
   var value = get(opts, key, v:null)
   if type(value) != v:t_string || value ==# ''
-    throw 'opencode9 transport: ' .. key .. ' must be a non-empty string'
+    throw 'vim-opencode transport: ' .. key .. ' must be a non-empty string'
   endif
   return value
 enddef
@@ -227,14 +227,14 @@ def ArmTimer(req: dict<any>, timeout_ms: number)
       unlet timers[string(req.timer)]
     endif
   endif
-  var timer = timer_start(timeout_ms, function('g:Opencode9TransportTimeout'))
+  var timer = timer_start(timeout_ms, function('g:VimOpencodeTransportTimeout'))
   req.timer = timer
   timers[string(timer)] = req.key
 enddef
 
 # job callbacks ---------------------------------------------------------------
 
-def g:Opencode9TransportOut(ch: channel, msg: string)
+def g:VimOpencodeTransportOut(ch: channel, msg: string)
   var key = get(channels, ChannelKey(ch), '')
   if key ==# '' || !has_key(requests, key)
     return
@@ -247,7 +247,7 @@ def g:Opencode9TransportOut(ch: channel, msg: string)
   endif
 enddef
 
-def g:Opencode9TransportErr(ch: channel, msg: string)
+def g:VimOpencodeTransportErr(ch: channel, msg: string)
   var key = get(channels, ChannelKey(ch), '')
   if key ==# '' || !has_key(requests, key)
     return
@@ -258,7 +258,7 @@ def g:Opencode9TransportErr(ch: channel, msg: string)
   endif
 enddef
 
-def g:Opencode9TransportExit(job: job, status: number)
+def g:VimOpencodeTransportExit(job: job, status: number)
   var key = get(channels, ChannelKey(job_getchannel(job)), '')
   if key ==# '' || !has_key(requests, key)
     return
@@ -266,7 +266,7 @@ def g:Opencode9TransportExit(job: job, status: number)
   Finish(key, status)
 enddef
 
-def g:Opencode9TransportTimeout(timer: number)
+def g:VimOpencodeTransportTimeout(timer: number)
   var timer_key = string(timer)
   var key = get(timers, timer_key, '')
   if key ==# ''

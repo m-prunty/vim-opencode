@@ -2,8 +2,8 @@ vim9script
 
 # Health checks exposed through :Opencode health.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/util.vim' as util
 
 const REQUIRED_FEATURES: list<string> = ['job', 'channel', 'timers']
 const OPTIONAL_FEATURES: list<string> = ['textprop', 'popupwin', 'diff', 'quickfix', 'syntax']
@@ -11,8 +11,8 @@ const OPTIONAL_FEATURES: list<string> = ['textprop', 'popupwin', 'diff', 'quickf
 # Build a human-readable health report without changing editor state.
 export def Report(): list<string>
   var lines: list<string> = []
-  var version = get(g:, 'opencode9_version', '0.1.0-dev')
-  lines->add('opencode9.vim health')
+  var version = get(g:, 'vim_opencode_version', '0.1.0-dev')
+  lines->add('vim-opencode.vim health')
   lines->add('version: ' .. version)
   lines->add('vim: ' .. VimVersion())
   lines->add('')
@@ -37,28 +37,28 @@ export def Report(): list<string>
     lines->add('[FAIL] config: ' .. util.ExceptionText())
   endtry
 
-  lines->add(ModuleStatus('transport', 'autoload/opencode9/transport.vim', 'P1'))
-  lines->add(ModuleStatus('discovery', 'autoload/opencode9/discovery.vim', 'P1'))
-  lines->add(ModuleStatus('prompt', 'autoload/opencode9/prompt.vim', 'P2'))
-  lines->add(ModuleStatus('state', 'autoload/opencode9/state.vim', 'P3'))
-  lines->add(ModuleStatus('render', 'autoload/opencode9/ui/render.vim', 'P3'))
-  lines->add(ModuleStatus('panel', 'autoload/opencode9/ui/panel.vim', 'P3'))
-  lines->add(ModuleStatus('sessions', 'autoload/opencode9/sessions.vim', 'P4'))
-  lines->add(ModuleStatus('permissions', 'autoload/opencode9/permissions.vim', 'P5'))
-  lines->add(ModuleStatus('diff', 'autoload/opencode9/ui/diff.vim', 'P5'))
-  lines->add(ModuleStatus('review', 'autoload/opencode9/review.vim', 'P6'))
-  lines->add(ModuleStatus('quickchat', 'autoload/opencode9/quickchat.vim', 'P7'))
-  lines->add(ModuleStatus('tabs', 'autoload/opencode9/tabs.vim', 'P8'))
+  lines->add(ModuleStatus('transport', 'autoload/vim_opencode/transport.vim', 'P1'))
+  lines->add(ModuleStatus('discovery', 'autoload/vim_opencode/discovery.vim', 'P1'))
+  lines->add(ModuleStatus('prompt', 'autoload/vim_opencode/prompt.vim', 'P2'))
+  lines->add(ModuleStatus('state', 'autoload/vim_opencode/state.vim', 'P3'))
+  lines->add(ModuleStatus('render', 'autoload/vim_opencode/ui/render.vim', 'P3'))
+  lines->add(ModuleStatus('panel', 'autoload/vim_opencode/ui/panel.vim', 'P3'))
+  lines->add(ModuleStatus('sessions', 'autoload/vim_opencode/sessions.vim', 'P4'))
+  lines->add(ModuleStatus('permissions', 'autoload/vim_opencode/permissions.vim', 'P5'))
+  lines->add(ModuleStatus('diff', 'autoload/vim_opencode/ui/diff.vim', 'P5'))
+  lines->add(ModuleStatus('review', 'autoload/vim_opencode/review.vim', 'P6'))
+  lines->add(ModuleStatus('quickchat', 'autoload/vim_opencode/quickchat.vim', 'P7'))
+  lines->add(ModuleStatus('tabs', 'autoload/vim_opencode/tabs.vim', 'P8'))
 
-  var doc = globpath(&runtimepath, 'doc/opencode9.txt', true, true)
-  lines->add(Status(!empty(doc), 'documentation', 'doc/opencode9.txt'))
+  var doc = globpath(&runtimepath, 'doc/vim-opencode.txt', true, true)
+  lines->add(Status(!empty(doc), 'documentation', 'doc/vim-opencode.txt'))
   return lines
 enddef
 
-# Print the report. The result is also stored in g:opencode9_health_lines.
+# Print the report. The result is also stored in g:vim_opencode_health_lines.
 export def Run()
   var lines = Report()
-  g:opencode9_health_lines = lines
+  g:vim_opencode_health_lines = lines
   for line in lines
     if util.StartsWith(line, '[FAIL]')
       echohl ErrorMsg

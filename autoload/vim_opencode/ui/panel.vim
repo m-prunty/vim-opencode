@@ -6,21 +6,21 @@ vim9script
 # three-line input below it. Streaming events update the state model; a debounce
 # timer batches redraws so the editor never blocks on every token.
 
-import autoload 'opencode9/catalog.vim' as catalog
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/prompt.vim' as prompt
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/ui/render.vim' as render
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/catalog.vim' as catalog
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/prompt.vim' as prompt
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/ui/render.vim' as render
+import autoload 'vim_opencode/util.vim' as util
 
-const OUTPUT_NAME = 'opencode9://transcript'
-const INPUT_NAME = 'opencode9://input'
-const OUTPUT_FILETYPE = 'opencode9_output'
-const INPUT_FILETYPE = 'opencode9_input'
+const OUTPUT_NAME = 'vim-opencode://transcript'
+const INPUT_NAME = 'vim-opencode://input'
+const OUTPUT_FILETYPE = 'vim-opencode_output'
+const INPUT_FILETYPE = 'vim-opencode_input'
 const INPUT_HEIGHT = 3
 const SNAPSHOT_LIMIT = 100
 
@@ -123,7 +123,7 @@ def InfoChunk(): dict<any>
   lines->add('  model: ' .. (model ==# '' ? 'unknown' : model))
   lines->add('  agent: ' .. (agent ==# '' ? 'default' : agent))
   lines->add('  commands: :Opencode toggle | :Opencode ask <text> | :Opencode prompt <text>')
-  lines->add('  env: vim ' .. v:version .. ' opencode9.vim ' .. get(g:, 'opencode9_version', '?'))
+  lines->add('  env: vim ' .. v:version .. ' vim-opencode.vim ' .. get(g:, 'vim_opencode_version', '?'))
   lines->add('')
   var key = 'info:' .. join([
     status.connected ? status.url : 'offline',
@@ -138,7 +138,7 @@ def InfoChunk(): dict<any>
     kind: 'info',
     lines: lines,
     fold: false,
-    props: [{offset: 0, col: 1, length: 1, group: 'Opencode9Muted'}],
+    props: [{offset: 0, col: 1, length: 1, group: 'VimOpencodeMuted'}],
   }
 enddef
 
@@ -271,18 +271,18 @@ enddef
 
 def InstallMappings()
   if output_buf > 0
-    execute 'nnoremap <buffer><silent> <CR> <Cmd>call g:Opencode9PanelJump()<CR>'
-    execute 'nnoremap <buffer><silent> q <Cmd>call g:Opencode9PanelClose()<CR>'
-    execute 'nnoremap <buffer><silent> ]m <Cmd>call g:Opencode9PanelNextMessage()<CR>'
-    execute 'nnoremap <buffer><silent> [m <Cmd>call g:Opencode9PanelPrevMessage()<CR>'
-    execute 'nnoremap <buffer><silent> ]u <Cmd>call g:Opencode9PanelNextUser()<CR>'
-    execute 'nnoremap <buffer><silent> [u <Cmd>call g:Opencode9PanelPrevUser()<CR>'
+    execute 'nnoremap <buffer><silent> <CR> <Cmd>call g:VimOpencodePanelJump()<CR>'
+    execute 'nnoremap <buffer><silent> q <Cmd>call g:VimOpencodePanelClose()<CR>'
+    execute 'nnoremap <buffer><silent> ]m <Cmd>call g:VimOpencodePanelNextMessage()<CR>'
+    execute 'nnoremap <buffer><silent> [m <Cmd>call g:VimOpencodePanelPrevMessage()<CR>'
+    execute 'nnoremap <buffer><silent> ]u <Cmd>call g:VimOpencodePanelNextUser()<CR>'
+    execute 'nnoremap <buffer><silent> [u <Cmd>call g:VimOpencodePanelPrevUser()<CR>'
   endif
   if input_buf > 0
-    execute 'inoremap <buffer><silent> <CR> <Cmd>call g:Opencode9PanelSubmit()<CR>'
-    execute 'nnoremap <buffer><silent> <CR> <Cmd>call g:Opencode9PanelSubmit()<CR>'
-    execute 'inoremap <buffer><silent> <C-p> <Cmd>call g:Opencode9PanelHistoryPrev()<CR>'
-    execute 'inoremap <buffer><silent> <C-n> <Cmd>call g:Opencode9PanelHistoryNext()<CR>'
+    execute 'inoremap <buffer><silent> <CR> <Cmd>call g:VimOpencodePanelSubmit()<CR>'
+    execute 'nnoremap <buffer><silent> <CR> <Cmd>call g:VimOpencodePanelSubmit()<CR>'
+    execute 'inoremap <buffer><silent> <C-p> <Cmd>call g:VimOpencodePanelHistoryPrev()<CR>'
+    execute 'inoremap <buffer><silent> <C-n> <Cmd>call g:VimOpencodePanelHistoryNext()<CR>'
   endif
 enddef
 
@@ -409,7 +409,7 @@ export def MarkDirty()
   endif
   StopFlushTimer()
   var delay = get(config.Get().panel, 'debounce_ms', 60)
-  flush_timer = timer_start(delay, function('g:Opencode9PanelFlush'))
+  flush_timer = timer_start(delay, function('g:VimOpencodePanelFlush'))
 enddef
 
 def StopFlushTimer()
@@ -419,7 +419,7 @@ def StopFlushTimer()
   endif
 enddef
 
-def g:Opencode9PanelFlush(timer: number)
+def g:VimOpencodePanelFlush(timer: number)
   flush_timer = 0
   Flush()
 enddef
@@ -440,7 +440,7 @@ export def Flush()
 
   var old_count = BufferLineCount(output_buf)
   var at_bottom = ViewAtBottom(old_count)
-  win_execute(output_win, 'g:opencode9_panel_saved_view = winsaveview()')
+  win_execute(output_win, 'g:vim_opencode_panel_saved_view = winsaveview()')
 
   var start_line = 1
   var i = 0
@@ -472,13 +472,13 @@ export def Flush()
 
   rendered = chunks
   var message_lines = render.MessageLines(chunks)
-  setbufvar(output_buf, 'opencode9_message_lines', message_lines)
+  setbufvar(output_buf, 'vim_opencode_message_lines', message_lines)
 
   if win_id2win(output_win) > 0
     if at_bottom
       win_execute(output_win, 'normal! G')
     else
-      win_execute(output_win, 'call winrestview(g:opencode9_panel_saved_view)')
+      win_execute(output_win, 'call winrestview(g:vim_opencode_panel_saved_view)')
     endif
   endif
 enddef
@@ -541,7 +541,7 @@ def ReplaceFrom(start_line: number, new_lines: list<string>)
 enddef
 
 def EnsurePropTypes()
-  var groups = ['Opencode9User', 'Opencode9Tool', 'Opencode9Reasoning', 'Opencode9Error', 'Opencode9Muted']
+  var groups = ['VimOpencodeUser', 'VimOpencodeTool', 'VimOpencodeReasoning', 'VimOpencodeError', 'VimOpencodeMuted']
   for group in groups
     var name = PropName(group)
     if empty(prop_type_get(name, {bufnr: output_buf}))
@@ -555,7 +555,7 @@ def EnsurePropTypes()
 enddef
 
 def PropName(group: string): string
-  return 'opencode9_' .. tolower(substitute(group, '^Opencode9', '', ''))
+  return 'vim_opencode_' .. tolower(substitute(group, '^VimOpencode', '', ''))
 enddef
 
 def ApplyProps(chunks: list<dict<any>>, common: number, start_line: number)
@@ -569,7 +569,7 @@ def ApplyProps(chunks: list<dict<any>>, common: number, start_line: number)
       if length > 0
         try
           prop_add(line + get(prop, 'offset', 0), get(prop, 'col', 1), {
-            type: PropName(get(prop, 'group', 'Opencode9Muted')),
+            type: PropName(get(prop, 'group', 'VimOpencodeMuted')),
             length: length,
             bufnr: output_buf,
           })
@@ -737,7 +737,7 @@ def JumpMessage(direction: number, user_only: bool)
     return
   endif
   FocusOutput()
-  var lines: list<dict<any>> = getbufvar(output_buf, 'opencode9_message_lines', [])
+  var lines: list<dict<any>> = getbufvar(output_buf, 'vim_opencode_message_lines', [])
   if empty(lines)
     return
   endif
@@ -796,38 +796,38 @@ enddef
 
 # Global wrappers for buffer-local mappings. Vim's mapping layer cannot call
 # script-local functions directly.
-def g:Opencode9PanelSubmit()
+def g:VimOpencodePanelSubmit()
   Submit()
 enddef
 
-def g:Opencode9PanelClose()
+def g:VimOpencodePanelClose()
   Close()
 enddef
 
-def g:Opencode9PanelJump()
+def g:VimOpencodePanelJump()
   JumpToFile()
 enddef
 
-def g:Opencode9PanelNextMessage()
+def g:VimOpencodePanelNextMessage()
   NextMessage()
 enddef
 
-def g:Opencode9PanelPrevMessage()
+def g:VimOpencodePanelPrevMessage()
   PrevMessage()
 enddef
 
-def g:Opencode9PanelNextUser()
+def g:VimOpencodePanelNextUser()
   NextUser()
 enddef
 
-def g:Opencode9PanelPrevUser()
+def g:VimOpencodePanelPrevUser()
   PrevUser()
 enddef
 
-def g:Opencode9PanelHistoryPrev()
+def g:VimOpencodePanelHistoryPrev()
   HistoryPrev()
 enddef
 
-def g:Opencode9PanelHistoryNext()
+def g:VimOpencodePanelHistoryNext()
   HistoryNext()
 enddef

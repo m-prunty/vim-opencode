@@ -3,12 +3,12 @@ vim9script
 # P10 hardening tests: assert_equal-style checks, message capping,
 # transport error handling, and config validation.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/ui/render.vim' as render
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/transport.vim' as transport
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/ui/render.vim' as render
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/transport.vim' as transport
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 var result_dir = 'test/results'
@@ -79,7 +79,7 @@ try
 
   # --- Util: StateDir ---
   var state_dir = util.StateDir()
-  Check(stridx(state_dir, 'opencode9') >= 0, 'StateDir should contain opencode9')
+  Check(stridx(state_dir, 'vim-opencode') >= 0, 'StateDir should contain vim-opencode')
 
   # --- Config: protocol validation ---
   try

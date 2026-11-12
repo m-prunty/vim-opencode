@@ -2,10 +2,10 @@ vim9script
 
 # P7 smoke test for command registration and cancellation safety.
 
-import autoload 'opencode9/commands.vim' as commands
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/quickchat.vim' as quickchat
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/commands.vim' as commands
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/quickchat.vim' as quickchat
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 

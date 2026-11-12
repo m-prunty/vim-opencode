@@ -2,18 +2,18 @@ vim9script
 
 # P4 headless smoke test for session listing and lifecycle commands.
 
-import autoload 'opencode9/catalog.vim' as catalog
-import autoload 'opencode9/commands.vim' as commands
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/prompt.vim' as prompt
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/sessions.vim' as sessions
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/transport.vim' as transport
-import autoload 'opencode9/ui/panel.vim' as panel
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/catalog.vim' as catalog
+import autoload 'vim_opencode/commands.vim' as commands
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/prompt.vim' as prompt
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/sessions.vim' as sessions
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/transport.vim' as transport
+import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/util.vim' as util
 
 const PORT = '18771'
 const BASE = 'http://127.0.0.1:' .. PORT
@@ -119,7 +119,7 @@ try
   Check(panel.IsOpen(), 'panel should be open after session open')
   WaitFor('snapshot', () => !empty(state.Messages()))
   panel.Flush()
-  var lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  var lines = getbufline(bufnr('vim-opencode://transcript'), 1, '$')
   Check(len(lines) > 0 && lines[0] ==# '# OpenCode', 'info header should be the first line')
   Check(index(lines, '  session: s1') >= 0, 'info header should show the session id')
   Check(index(lines, 'fixture question') < 0, 'snapshot text should be prefixed')
@@ -128,7 +128,7 @@ try
   # The header follows model changes without losing the transcript.
   state.Apply({type: 'session.step.started', data: {sessionID: 's1', assistantMessageID: 'a9', model: 'anthropic/claude'}})
   panel.Flush()
-  lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  lines = getbufline(bufnr('vim-opencode://transcript'), 1, '$')
   Check(index(lines, '  model: anthropic/claude') >= 0, 'info header should show the model')
   Check(join(lines, "\n") =~# 'fixture question', 'transcript should survive header updates')
 
@@ -161,7 +161,7 @@ try
   Check(index(catalog.Complete('@th'), '@this') >= 0, 'completion should offer context placeholders')
 
   panel.Flush()
-  lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  lines = getbufline(bufnr('vim-opencode://transcript'), 1, '$')
   Check(index(lines, '  model: anthropic/claude-3') >= 0, 'info header should show the selected model')
   Check(index(lines, '  agent: build') >= 0, 'info header should show the selected agent')
 
@@ -171,7 +171,7 @@ try
   commands.Dispatch('open', [0, 0], false)
   Check(panel.IsOpen(), ':Opencode open should reopen the panel')
   panel.Flush()
-  lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  lines = getbufline(bufnr('vim-opencode://transcript'), 1, '$')
   Check(index(lines, '  server: ' .. BASE .. ' (version 2.0.0)') >= 0, 'open header should show the server and version')
   Check(index(lines, '  directory: ' .. util.Cwd()) >= 0, 'open header should show the directory')
   Check(join(lines, "\n") =~# '  env: vim ', 'open header should show environment versions: ' .. join(lines, ' | '))

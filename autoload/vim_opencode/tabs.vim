@@ -3,12 +3,12 @@ vim9script
 # Lightweight project-scoped panel tabs. A tab stores only durable metadata;
 # transcript content remains owned by the server/session state model.
 
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/sessions.vim' as sessions
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/ui/panel.vim' as panel
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/sessions.vim' as sessions
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/util.vim' as util
 
 var tabs: list<dict<any>> = []
 var current = 0

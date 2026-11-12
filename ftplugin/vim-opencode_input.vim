@@ -1,8 +1,8 @@
 vim9script
 
-# Settings for the opencode9 prompt input buffer.
+# Settings for the vim-opencode prompt input buffer.
 
-import autoload 'opencode9/catalog.vim' as catalog
+import autoload 'vim_opencode/catalog.vim' as catalog
 
 if exists('b:did_ftplugin')
   finish
@@ -21,7 +21,7 @@ setlocal linebreak
 
 # Completion offers @ context placeholders and cached server commands. Commands
 # use a leading slash for display, but the input is still plain text.
-def g:Opencode9InputComplete(findstart: number, base: string): any
+def g:VimOpencodeInputComplete(findstart: number, base: string): any
   if findstart == 1
     var line = getline('.')
     var start = col('.') - 1
@@ -34,6 +34,6 @@ def g:Opencode9InputComplete(findstart: number, base: string): any
 enddef
 
 setlocal completeopt=menu,menuone,noinsert
-setlocal omnifunc=g:Opencode9InputComplete
+setlocal omnifunc=g:VimOpencodeInputComplete
 
 b:undo_ftplugin = 'setlocal buftype< bufhidden< swapfile< buflisted< number< relativenumber< undofile< wrap< linebreak< completeopt< omnifunc<'

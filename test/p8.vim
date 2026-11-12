@@ -2,11 +2,11 @@ vim9script
 
 # P8 smoke test for persistent panel tab metadata.
 
-import autoload 'opencode9/commands.vim' as commands
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/tabs.vim' as tabs
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/commands.vim' as commands
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/tabs.vim' as tabs
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 

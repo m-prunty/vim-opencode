@@ -3,13 +3,13 @@ vim9script
 # Small inline-edit workflow. It deliberately replaces whole lines only and
 # keeps Vim's native undo as the recovery mechanism.
 
-import autoload 'opencode9/catalog.vim' as catalog
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/catalog.vim' as catalog
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/util.vim' as util
 
 var active: dict<any> = {}
 var installed = false
@@ -76,7 +76,7 @@ def Create(conn: any)
   if empty(active)
     return
   endif
-  v2.CreateSession(conn, {title: 'opencode9 quick chat'},
+  v2.CreateSession(conn, {title: 'vim-opencode quick chat'},
     (value: any, status: number) => {
       var id = v2.SessionId(value)
       if id ==# ''

@@ -1,6 +1,6 @@
 vim9script
 
-# Shared helpers for opencode9.vim.
+# Shared helpers for vim-opencode.vim.
 
 const LOG_LEVELS: dict<number> = {
   silent: 0,
@@ -20,7 +20,7 @@ export def JsonEncode(value: any): string
   try
     return json_encode(value)
   catch
-    throw 'opencode9: cannot encode JSON: ' .. v:exception
+    throw 'vim-opencode: cannot encode JSON: ' .. v:exception
   endtry
   return ''
 enddef
@@ -33,7 +33,7 @@ export def JsonDecode(text: string): any
   try
     return json_decode(text)
   catch
-    throw 'opencode9: invalid JSON: ' .. v:exception
+    throw 'vim-opencode: invalid JSON: ' .. v:exception
   endtry
   return v:null
 enddef
@@ -80,17 +80,17 @@ export def Cwd(): string
   return NormalizePath(getcwd())
 enddef
 
-# Return opencode9's per-user state directory, honoring XDG_STATE_HOME.
+# Return vim-opencode's per-user state directory, honoring XDG_STATE_HOME.
 export def StateDir(): string
   var base = getenv('XDG_STATE_HOME')
   if base ==# ''
     base = expand('~/.local/state')
   endif
-  return NormalizePath(base .. '/opencode9')
+  return NormalizePath(base .. '/vim-opencode')
 enddef
 
 # Create a unique temporary file name.
-export def TempFile(prefix: string = 'opencode9'): string
+export def TempFile(prefix: string = 'vim-opencode'): string
   return tempname() .. '-' .. prefix
 enddef
 
@@ -101,7 +101,7 @@ export def EnsureDir(path: string)
   endif
   mkdir(path, 'p')
   if !isdirectory(path)
-    throw 'opencode9: cannot create directory: ' .. path
+    throw 'vim-opencode: cannot create directory: ' .. path
   endif
 enddef
 
@@ -148,7 +148,7 @@ enddef
 
 # Emit a message at the requested level. Errors also reach the message area.
 export def Log(level: string, message: string)
-  var config = get(g:, 'opencode9_config', {})
+  var config = get(g:, 'vim_opencode_config', {})
   var configured = get(config, 'log_level', 'warn')
   var actual_level = has_key(LOG_LEVELS, level) ? level : 'info'
   var threshold = has_key(LOG_LEVELS, configured) ? LOG_LEVELS[configured] : LOG_LEVELS.warn
@@ -176,18 +176,18 @@ enddef
 
 export def EchoError(message: string)
   echohl ErrorMsg
-  echomsg 'opencode9: ' .. message
+  echomsg 'vim-opencode: ' .. message
   echohl None
 enddef
 
 export def EchoWarn(message: string)
   echohl WarningMsg
-  echomsg 'opencode9: ' .. message
+  echomsg 'vim-opencode: ' .. message
   echohl None
 enddef
 
 export def EchoInfo(message: string)
-  echomsg 'opencode9: ' .. message
+  echomsg 'vim-opencode: ' .. message
 enddef
 
 # Return true for strings that start with a prefix.

@@ -2,12 +2,12 @@ vim9script
 
 # P1 headless smoke test for transport, discovery and the server connection.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/health.vim' as health
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/transport.vim' as transport
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/health.vim' as health
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/transport.vim' as transport
+import autoload 'vim_opencode/util.vim' as util
 
 const PORT = '18767'
 const BASE = 'http://127.0.0.1:' .. PORT

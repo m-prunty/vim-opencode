@@ -2,12 +2,12 @@ vim9script
 
 # P3 headless smoke test for the split panel and streaming renderer.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/ui/panel.vim' as panel
-import autoload 'opencode9/ui/render.vim' as render
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/ui/render.vim' as render
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 var result_dir = 'test/results'
@@ -51,11 +51,11 @@ try
   # Panel open/close.
   panel.Open()
   Check(panel.IsOpen(), 'panel should be open')
-  Check(bufnr('opencode9://transcript') > 0, 'transcript buffer should exist')
-  Check(bufnr('opencode9://input') > 0, 'input buffer should exist')
+  Check(bufnr('vim-opencode://transcript') > 0, 'transcript buffer should exist')
+  Check(bufnr('vim-opencode://input') > 0, 'input buffer should exist')
 
   panel.Flush()
-  var lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  var lines = getbufline(bufnr('vim-opencode://transcript'), 1, '$')
   Check(index(lines, '> hello there') >= 0, 'user message should render')
   Check(index(lines, 'Hi there') >= 0, 'assistant text should render')
 
@@ -68,11 +68,11 @@ try
   # Streaming update.
   state.Apply({type: 'session.text.delta', data: {sessionID: 's1', assistantMessageID: 'a1', ordinal: 0, delta: ' more'}})
   panel.Flush()
-  lines = getbufline(bufnr('opencode9://transcript'), 1, '$')
+  lines = getbufline(bufnr('vim-opencode://transcript'), 1, '$')
   Check(index(lines, 'Hi there more') >= 0, 'streamed delta should appear')
 
   # Navigation markers.
-  var msg_lines = getbufvar(bufnr('opencode9://transcript'), 'opencode9_message_lines', [])
+  var msg_lines = getbufvar(bufnr('vim-opencode://transcript'), 'vim_opencode_message_lines', [])
   Check(!empty(msg_lines), 'message line markers should exist')
 
   panel.Close()

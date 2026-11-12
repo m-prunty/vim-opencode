@@ -2,14 +2,14 @@ vim9script
 
 # P5 smoke test for permission/question state and V2 replies.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/permissions.vim' as permissions
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/transport.vim' as transport
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/permissions.vim' as permissions
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/transport.vim' as transport
+import autoload 'vim_opencode/util.vim' as util
 
 const PORT = '18772'
 const BASE = 'http://127.0.0.1:' .. PORT

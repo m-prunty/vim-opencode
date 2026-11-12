@@ -1,22 +1,22 @@
-*opencode9.txt*  A Vim 9.1-native OpenCode client
+*vim-opencode.txt*  A Vim 9.1-native OpenCode client
 
 ==============================================================================
-CONTENTS                                                     *opencode9-contents*
+CONTENTS                                                     *vim-opencode-contents*
 
-  1. Introduction ........................ |opencode9-introduction|
-  2. Requirements ........................ |opencode9-requirements|
-  3. Commands ............................ |opencode9-commands|
-  4. Configuration ....................... |opencode9-configuration|
-  5. Events .............................. |opencode9-events|
-  6. Panel ............................... |opencode9-panel|
-  7. Sessions ............................ |opencode9-sessions|
-  8. Functions ........................... |opencode9-functions|
-  9. Development ......................... |opencode9-development|
+  1. Introduction ........................ |vim-opencode-introduction|
+  2. Requirements ........................ |vim-opencode-requirements|
+  3. Commands ............................ |vim-opencode-commands|
+  4. Configuration ....................... |vim-opencode-configuration|
+  5. Events .............................. |vim-opencode-events|
+  6. Panel ............................... |vim-opencode-panel|
+  7. Sessions ............................ |vim-opencode-sessions|
+  8. Functions ........................... |vim-opencode-functions|
+  9. Development ......................... |vim-opencode-development|
 
 ==============================================================================
-1. INTRODUCTION                                             *opencode9-introduction*
+1. INTRODUCTION                                             *vim-opencode-introduction*
 
-opencode9.vim is a Vim 9.1-native client for OpenCode. It speaks the OpenCode
+vim-opencode.vim is a Vim 9.1-native client for OpenCode. It speaks the OpenCode
 V2 HTTP and SSE APIs and keeps its core independent of windows and buffers.
 The UI is added in layers: prompt and context workflows first, then a split
 panel, permissions and diff review.
@@ -27,7 +27,7 @@ a split-panel transcript. Commands marked with a phase such as (P4) are
 reserved and report that they are not implemented yet.
 
 ==============================================================================
-2. REQUIREMENTS                                             *opencode9-requirements*
+2. REQUIREMENTS                                             *vim-opencode-requirements*
 
 - Vim 9.1 or newer.
 - The |+job|, |+channel| and |+timers| features.
@@ -38,18 +38,18 @@ reserved and report that they are not implemented yet.
 Run |:Opencode| health to check the current build.
 
 ==============================================================================
-3. COMMANDS                                                   *opencode9-commands*
+3. COMMANDS                                                   *vim-opencode-commands*
 
                                                                  *:Opencode*
 :Opencode [command] [arguments]
-                        Execute an opencode9 command. With no argument, show
+                        Execute an vim-opencode command. With no argument, show
                         the command summary. Command names and common
                         arguments are completed with <Tab>.
 
                         The command accepts a range. Later prompt commands use
                         it to scope context. A ! is reserved for debugging.
 
-                                                        *opencode9-command-list*
+                                                        *vim-opencode-command-list*
 help [doc]              Show the command summary. With "doc", open this help
                         file.
 version                 Show the plugin and Vim versions.
@@ -64,7 +64,7 @@ server [action]         Manage discovery and the connection. Actions:
                           start       Run the configured server_command.
                           stop        Stop a server started by this plugin.
 session ...             List, create, open, rename, fork or delete conversations.
-                        See |opencode9-sessions|.
+                        See |vim-opencode-sessions|.
 prompt [text]           Send a prompt with @ placeholders. With no text, open
                         the ask input. A trailing ... opens ask with the text
                         before it as the initial value.
@@ -85,10 +85,10 @@ tab ...                 List, create, select or close persistent panel tabs.
 quickchat               Replace the current range in place. (P7)
 debug ...               Inspect plugin state. (P10)
 
-                                                          *opencode9-discovery*
+                                                          *vim-opencode-discovery*
 Server discovery tries, in order:
 
-1. The configured |g:opencode9_config| server_url. A configured URL is
+1. The configured |g:vim_opencode_config| server_url. A configured URL is
    authoritative; the plugin never starts a different server for it.
 2. OpenCode background registrations in
    $XDG_STATE_HOME/opencode (or ~/.local/state/opencode):
@@ -100,7 +100,7 @@ Every candidate is probed with GET /api/info before it becomes current. The
 SSE stream is then opened on GET /api/event. Lost streams reconnect with
 exponential backoff until :Opencode server disconnect or Vim exits.
 
-                                                           *opencode9-context*
+                                                           *vim-opencode-context*
 Context placeholders are expanded in prompt and ask text before submission.
 They are matched longest-first, so @buffers is not mistaken for @buffer.
 
@@ -133,14 +133,14 @@ The optional start command is polled for five seconds. Use
 :Opencode server status to inspect the active URL, version and stream state.
 
 ==============================================================================
-4. CONFIGURATION                                         *opencode9-configuration*
+4. CONFIGURATION                                         *vim-opencode-configuration*
 
-Set |g:opencode9_config| before the plugin loads. Dictionaries are merged
+Set |g:vim_opencode_config| before the plugin loads. Dictionaries are merged
 recursively with the defaults below; unknown top-level keys are preserved for
 forward compatibility.
 
 >vim
-g:opencode9_config = {
+g:vim_opencode_config = {
   server_url: '',
   server_command: [],
   auto_start: true,
@@ -186,12 +186,12 @@ g:opencode9_config = {
 }
 <
 
-                                                           *g:opencode9_config*
-g:opencode9_config      Dictionary of user settings. It is validated at
+                                                           *g:vim_opencode_config*
+g:vim_opencode_config      Dictionary of user settings. It is validated at
                         startup. Invalid types, URLs or enum values abort
                         loading with an error naming the bad key.
 
-                                                              *opencode9-config-keys*
+                                                              *vim-opencode-config-keys*
 server_url              Base URL of a running OpenCode server. Empty means
                         discover a server of start one with server_command.
 server_command          String or list used to start OpenCode when a server is
@@ -214,16 +214,16 @@ panel                   Layout and render batching settings.
 diff                    Edit review behavior.
 
 ==============================================================================
-5. EVENTS                                                         *opencode9-events*
+5. EVENTS                                                         *vim-opencode-events*
 
 The event bridge emits a User autocmd for every server-sent event:
 
 >vim
-autocmd User OpencodeEvent:session.status echo g:opencode9_event_type
+autocmd User OpencodeEvent:session.status echo g:vim_opencode_event_type
 <
 
 The event type follows the colon. The decoded payload is available in
-g:opencode9_event, and the type is also in g:opencode9_event_type. Events are
+g:vim_opencode_event, and the type is also in g:vim_opencode_event_type. Events are
 only emitted when a matching autocmd exists, so no message is printed for
 unhandled types.
 
@@ -254,18 +254,18 @@ The plugin also emits local events:
   OpencodeEvent:review.pending      A review comment was created.
 
 ==============================================================================
-6. PANEL                                                       *opencode9-panel*
+6. PANEL                                                       *vim-opencode-panel*
 
 The split panel shows a streaming transcript of the conversation above an
 input buffer. Open it with |:Opencode| toggle, |:Opencode| open or
 |:Opencode| open panel.
 
-                                                              *opencode9-panel-layout*
+                                                              *vim-opencode-panel-layout*
 The panel is a horizontal split. The top window holds the read-only
 transcript; the bottom window holds a three-line input buffer. The panel
-respects |g:opencode9_config| panel settings (height, position, debounce_ms).
+respects |g:vim_opencode_config| panel settings (height, position, debounce_ms).
 
-                                                              *opencode9-panel-commands*
+                                                              *vim-opencode-panel-commands*
 :Opencode toggle          Show or hide the whole panel.
 :Opencode open            Open the full panel (transcript + input).
 :Opencode open input      Open only the input window.
@@ -276,7 +276,7 @@ respects |g:opencode9_config| panel settings (height, position, debounce_ms).
 :Opencode close output    Close only the transcript window.
 :Opencode close panel     Close the whole panel.
 
-                                                              *opencode9-panel-mappings*
+                                                              *vim-opencode-panel-mappings*
 In the transcript window:
 
   <CR>                  Jump to the file location under the cursor.
@@ -292,20 +292,20 @@ In the input window:
   <C-p>                 Previous draft from history.
   <C-n>                 Next draft from history.
 
-                                                              *opencode9-panel-streaming*
+                                                              *vim-opencode-panel-streaming*
 Server-sent events (session.text.delta, session.tool.*, session.step.*) are
 applied to the transcript model and rendered on a debounce timer, so the
 editor never blocks while tokens stream in. Scrolling up is preserved: new
 content only jumps to the bottom when the view was already at the bottom.
 
 ==============================================================================
-7. SESSIONS                                                   *opencode9-sessions*
+7. SESSIONS                                                   *vim-opencode-sessions*
 
 Sessions are listed per working directory. The plugin keeps a small cache so
 commands can refer to a session by its full id, a unique id prefix, or the
 number shown by |:Opencode| session list.
 
-                                                              *opencode9-session-commands*
+                                                              *vim-opencode-session-commands*
 :Opencode session                 List sessions for the current directory.
 :Opencode session list            Same as above.
 :Opencode session pick            Choose a session from a popup menu.
@@ -329,7 +329,7 @@ The info header at the top of the transcript shows the active server, working
 directory, session and model. It updates as events arrive.
 
 ==============================================================================
-8. FUNCTIONS                                                 *opencode9-functions*
+8. FUNCTIONS                                                 *vim-opencode-functions*
 
 The public function surface follows the command surface. Each action will be
 available as both an Ex command and a function so mappings and integrations do
@@ -337,7 +337,7 @@ not need to parse command strings. Names are finalized with the phase that
 implements them.
 
 ==============================================================================
-9. DEVELOPMENT                                             *opencode9-development*
+9. DEVELOPMENT                                             *vim-opencode-development*
 
 Run the headless smoke tests from the repository root:
 

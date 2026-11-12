@@ -1,7 +1,7 @@
 vim9script
 
-import autoload 'opencode9/util.vim' as util
-import autoload 'opencode9/events.vim' as events
+import autoload 'vim_opencode/util.vim' as util
+import autoload 'vim_opencode/events.vim' as events
 
 var comments: list<dict<any>> = []
 var next_id = 0

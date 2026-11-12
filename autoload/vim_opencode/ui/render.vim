@@ -6,8 +6,8 @@ vim9script
 # props}. Chunks are stable per message part so streaming text only rewrites the
 # part that changed, and previously created folds stay intact.
 
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/util.vim' as util
 
 const MAX_REASONING_LINES = 80
 const MAX_TOOL_LINES = 120
@@ -31,7 +31,7 @@ export def Chunks(max_messages: number = 0): list<dict<any>>
         '# Scroll or reopen the panel to see more context.',
       ],
       fold: false,
-      props: [{offset: 0, col: 1, length: 1, group: 'Opencode9Muted'}],
+      props: [{offset: 0, col: 1, length: 1, group: 'VimOpencodeMuted'}],
     })
   endif
   var i = start
@@ -86,7 +86,7 @@ def ChunksForMessage(message: dict<any>): list<dict<any>>
       kind: 'user',
       lines: PrefixLines(text, '> '),
       fold: false,
-      props: [{offset: 0, col: 1, length: 2, group: 'Opencode9User'}],
+      props: [{offset: 0, col: 1, length: 2, group: 'VimOpencodeUser'}],
     })
     MarkStart(chunks)
     return chunks
@@ -115,7 +115,7 @@ def ChunksForMessage(message: dict<any>): list<dict<any>>
             kind: 'reasoning',
             lines: lines,
             fold: true,
-            props: [{offset: 0, col: 1, length: strlen(lines[0]), group: 'Opencode9Reasoning'}],
+            props: [{offset: 0, col: 1, length: strlen(lines[0]), group: 'VimOpencodeReasoning'}],
           })
         endif
       elseif part_kind ==# 'tool'
@@ -125,7 +125,7 @@ def ChunksForMessage(message: dict<any>): list<dict<any>>
           kind: 'tool',
           lines: tool_lines,
           fold: true,
-          props: [{offset: 0, col: 1, length: strlen(tool_lines[0]), group: 'Opencode9Tool'}],
+          props: [{offset: 0, col: 1, length: strlen(tool_lines[0]), group: 'VimOpencodeTool'}],
         })
       endif
     endfor
@@ -141,7 +141,7 @@ def ChunksForMessage(message: dict<any>): list<dict<any>>
         kind: 'notice',
         lines: notice_lines,
         fold: false,
-        props: [{offset: 0, col: 1, length: 1, group: 'Opencode9Muted'}],
+        props: [{offset: 0, col: 1, length: 1, group: 'VimOpencodeMuted'}],
       })
     endif
   endif
@@ -154,7 +154,7 @@ def ChunksForMessage(message: dict<any>): list<dict<any>>
       kind: 'error',
       lines: error_lines,
       fold: false,
-      props: [{offset: 0, col: 1, length: strlen(error_lines[0]), group: 'Opencode9Error'}],
+      props: [{offset: 0, col: 1, length: strlen(error_lines[0]), group: 'VimOpencodeError'}],
     })
   endif
 

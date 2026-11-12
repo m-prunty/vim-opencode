@@ -2,7 +2,7 @@ vim9script
 
 # OpenCode V2 protocol adapter.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 const INFO_PATH = '/api/info'
 const EVENT_PATH = '/api/event'

@@ -2,14 +2,14 @@ vim9script
 
 # Context-aware prompt, ask and operator workflows.
 
-import autoload 'opencode9/catalog.vim' as catalog
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/review.vim' as review
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/catalog.vim' as catalog
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/review.vim' as review
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/util.vim' as util
 
 # Send a prompt using the range from the :Opencode command.
 export def Send(text: string, line_range: list<number>)
@@ -40,7 +40,7 @@ enddef
 
 export def AskWithContext(initial: string, ctx: dict<any>)
   context.Highlight(ctx)
-  var answer = input('OpenCode: ', initial, 'customlist,g:Opencode9AskComplete')
+  var answer = input('OpenCode: ', initial, 'customlist,g:VimOpencodeAskComplete')
   if trim(answer) ==# ''
     context.Resume(ctx)
     return
@@ -50,8 +50,8 @@ enddef
 
 # Set operatorfunc and return the g@ motion for an <expr> mapping.
 export def OperatorExpr(prompt_text: string = '@this'): string
-  g:opencode9_operator_prompt = prompt_text
-  &operatorfunc = 'g:Opencode9Operator'
+  g:vim_opencode_operator_prompt = prompt_text
+  &operatorfunc = 'g:VimOpencodeOperator'
   return 'g@'
 enddef
 
@@ -61,12 +61,12 @@ export def OperatorCommand(prompt_text: string)
   normal! g@
 enddef
 
-def g:Opencode9Operator(operator_type: string)
-  SendWithContext(get(g:, 'opencode9_operator_prompt', '@this'), context.CaptureOperator(operator_type))
+def g:VimOpencodeOperator(operator_type: string)
+  SendWithContext(get(g:, 'vim_opencode_operator_prompt', '@this'), context.CaptureOperator(operator_type))
 enddef
 
 # Completion for input() during ask.
-def g:Opencode9AskComplete(arglead: string, cmdline: string, cursorpos: number): list<string>
+def g:VimOpencodeAskComplete(arglead: string, cmdline: string, cursorpos: number): list<string>
   var candidates = ['@this ', '@buffer ', '@buffers ', '@visible ', '@quickfix ', '@marks ', '@diagnostics ']
   var matches: list<string> = []
   for candidate in candidates
@@ -117,7 +117,7 @@ enddef
 def Succeeded(ctx: dict<any>, session_id: string, text: string)
   context.Clear(ctx)
   events.EmitLocal('prompt.sent', {sessionID: session_id, text: text})
-  echomsg 'opencode9: prompt sent to session ' .. session_id
+  echomsg 'vim-opencode: prompt sent to session ' .. session_id
 enddef
 
 def Fail(ctx: dict<any>, message: string)

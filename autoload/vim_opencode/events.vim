@@ -2,7 +2,7 @@ vim9script
 
 # UI-agnostic event dispatch. Later phases add reducers on top.
 
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/util.vim' as util
 
 var listeners: list<func> = []
 
@@ -29,8 +29,8 @@ enddef
 # Emit a decoded server event to listeners, User autocmds and public state.
 export def Emit(event: any)
   var event_type = Type(event)
-  g:opencode9_event = event
-  g:opencode9_event_type = event_type
+  g:vim_opencode_event = event
+  g:vim_opencode_event_type = event_type
   if event_type ==# ''
     util.Log('warn', 'received an event without a type')
     return
@@ -77,5 +77,5 @@ export def Id(event: any): string
 enddef
 
 export def Last(): any
-  return get(g:, 'opencode9_event', v:null)
+  return get(g:, 'vim_opencode_event', v:null)
 enddef

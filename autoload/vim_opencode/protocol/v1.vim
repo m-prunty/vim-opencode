@@ -6,8 +6,8 @@ vim9script
 # normalizes V1 wire shapes into the shared model used by the UI, so the rest
 # of the plugin never sees V1/V2 differences directly.
 
-import autoload 'opencode9/protocol/adapter.vim' as adapter
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/protocol/adapter.vim' as adapter
+import autoload 'vim_opencode/util.vim' as util
 
 const HEALTH_PATH = '/global/health'
 const EVENT_PATH = '/global/event'

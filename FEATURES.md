@@ -35,7 +35,7 @@ default shortcuts for the most useful commands.
 **Recommended example uses:**
 
 - `:Opencode health` — Verify Vim 9.1, `+job`, `+channel`, `+timers`, `+textprop`, and `curl` are available before doing anything else.
-- `:Opencode config validate` — Confirm your `g:opencode9_config` is valid after editing your `.vimrc`.
+- `:Opencode config validate` — Confirm your `g:vim_opencode_config` is valid after editing your `.vimrc`.
 - `:Opencode config panel.height` — Inspect a single config value (e.g. the panel height).
 - `:Opencode help doc` — Open the full reference manual in a help window.
 
@@ -159,7 +159,7 @@ default shortcuts for the most useful commands.
 - `:Opencode command run review src` — Run the `review` server command on `src`.
 - `:Opencode prompt @this` (after selecting a model/agent) — The prompt uses the selected model and agent.
 
-**Model/agent persistence:** Selections are saved to `$XDG_STATE_HOME/opencode9/favorites.json` and survive restarts.
+**Model/agent persistence:** Selections are saved to `$XDG_STATE_HOME/vim-opencode/favorites.json` and survive restarts.
 
 **Default shortcut:** None by default.
 
@@ -234,7 +234,7 @@ Review comments are appended to the next prompt sent via `:Opencode prompt` or `
 - `:Opencode tab open 2` — Switch to tab 2.
 - `:Opencode tab close` — Close the current tab.
 
-Tab metadata (session, directory, draft) is persisted under `$XDG_STATE_HOME/opencode9/` and restored on startup.
+Tab metadata (session, directory, draft) is persisted under `$XDG_STATE_HOME/vim-opencode/` and restored on startup.
 
 **Default shortcut:** None by default.
 
@@ -242,9 +242,9 @@ Tab metadata (session, directory, draft) is persisted under `$XDG_STATE_HOME/ope
 
 ## P9 — V1 Protocol Adapter
 
-A V1 protocol adapter (`autoload/opencode9/protocol/v1.vim`) normalizes V1 wire shapes
+A V1 protocol adapter (`autoload/vim-opencode/protocol/v1.vim`) normalizes V1 wire shapes
 (`/global/health`, `/global/event`, `/global/session*`, etc.) into the shared model used by the UI.
-Protocol selection is via `g:opencode9_config.protocol` (`v1` or `v2`, default `v2`).
+Protocol selection is via `g:vim_opencode_config.protocol` (`v1` or `v2`, default `v2`).
 
 The V2 code path is unchanged and fully functional.
 
@@ -269,7 +269,7 @@ The V2 code path is unchanged and fully functional.
 The plugin does not enable default mappings by default (`default_mappings: false`). To enable them, add to your `.vimrc`:
 
 ```vim
-let g:opencode9_config = {
+let g:vim_opencode_config = {
   \ default_mappings: v:true,
   \ keymaps: {
   \   help: '<Leader>oh',
@@ -306,7 +306,7 @@ let g:opencode9_config = {
 
 ## Events Reference
 
-The plugin emits `User` autocmds prefixed with `OpencodeEvent:`. The decoded payload is in `g:opencode9_event`.
+The plugin emits `User` autocmds prefixed with `OpencodeEvent:`. The decoded payload is in `g:vim_opencode_event`.
 
 | Event | When |
 |-------|------|
@@ -333,7 +333,7 @@ The plugin emits `User` autocmds prefixed with `OpencodeEvent:`. The decoded pay
 **Example autocmd:**
 
 ```vim
-autocmd User OpencodeEvent:permission.asked echo 'Permission requested: ' .. string(g:opencode9_event)
+autocmd User OpencodeEvent:permission.asked echo 'Permission requested: ' .. string(g:vim_opencode_event)
 ```
 
 ---

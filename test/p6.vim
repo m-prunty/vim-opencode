@@ -2,11 +2,11 @@ vim9script
 
 # P6 smoke test for deduplicated rich context and review comments.
 
-import autoload 'opencode9/commands.vim' as commands
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/review.vim' as review
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/commands.vim' as commands
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/review.vim' as review
+import autoload 'vim_opencode/util.vim' as util
 
 var failures: list<string> = []
 

@@ -7,12 +7,12 @@ vim9script
 # round trip. Network failures are reported through the caller's error handler
 # or echoed directly.
 
-import autoload 'opencode9/events.vim' as events
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/state.vim' as state
-import autoload 'opencode9/ui/panel.vim' as panel
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/events.vim' as events
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/state.vim' as state
+import autoload 'vim_opencode/ui/panel.vim' as panel
+import autoload 'vim_opencode/util.vim' as util
 
 var cache: list<dict<any>> = []
 

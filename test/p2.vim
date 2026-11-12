@@ -2,14 +2,14 @@ vim9script
 
 # P2 headless smoke test for context, sessions and prompt submission.
 
-import autoload 'opencode9/config.vim' as config
-import autoload 'opencode9/context.vim' as context
-import autoload 'opencode9/discovery.vim' as discovery
-import autoload 'opencode9/prompt.vim' as prompt
-import autoload 'opencode9/protocol/v2.vim' as v2
-import autoload 'opencode9/server.vim' as server
-import autoload 'opencode9/transport.vim' as transport
-import autoload 'opencode9/util.vim' as util
+import autoload 'vim_opencode/config.vim' as config
+import autoload 'vim_opencode/context.vim' as context
+import autoload 'vim_opencode/discovery.vim' as discovery
+import autoload 'vim_opencode/prompt.vim' as prompt
+import autoload 'vim_opencode/protocol/v2.vim' as v2
+import autoload 'vim_opencode/server.vim' as server
+import autoload 'vim_opencode/transport.vim' as transport
+import autoload 'vim_opencode/util.vim' as util
 
 const PORT = '18769'
 const BASE = 'http://127.0.0.1:' .. PORT
@@ -124,7 +124,7 @@ try
 
   # Operator setup.
   Check(prompt.OperatorExpr('@this') ==# 'g@', 'operator expression is wrong')
-  Check(&operatorfunc ==# 'g:Opencode9Operator', 'operatorfunc was not set')
+  Check(&operatorfunc ==# 'g:VimOpencodeOperator', 'operatorfunc was not set')
 catch
   failures->add('unexpected exception: ' .. util.ExceptionText())
 endtry
