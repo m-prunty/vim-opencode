@@ -103,7 +103,7 @@ export def Ask()
     labels->add(printf('[%d] %s: %s', index, item.kind, item.title))
     index += 1
   endfor
-  popup.Run({
+  var spec: dict<any> = {
     \ items: labels,
     \ title: 'OpenCode permissions',
     \ border: 'rounded',
@@ -125,7 +125,7 @@ export def Ask()
           AnswerQuestion(item.id, answer)
         endif
       else
-        popup.Run({
+        var pspec: dict<any> = {
           \ items: ['Allow once', 'Allow always', 'Deny'],
           \ title: 'Permission: ' .. item.title,
           \ border: 'rounded',
@@ -140,10 +140,13 @@ export def Ask()
               Deny(item.id)
             endif
           },
-          \ })
+          \ }
+        popup.Run(pspec)
       endif
     },
-    \ })
+    \ footer: footer,
+    \ }
+  popup.Run(spec)
 enddef
 
 def Reply(token: string, action: string, always: bool = false)

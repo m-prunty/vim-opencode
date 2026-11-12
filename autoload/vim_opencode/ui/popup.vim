@@ -224,19 +224,19 @@ def g:VimOpencodePopupCloseById()
 enddef
 
 def g:VimOpencodePopupScrollDown()
-  VimOpencodePopupScrollCurrent({'dir': 1})
+  g:VimOpencodePopupScrollCurrent({'dir': 1})
 enddef
 
 def g:VimOpencodePopupScrollUp()
-  VimOpencodePopupScrollCurrent({'dir': -1})
+  g:VimOpencodePopupScrollCurrent({'dir': -1})
 enddef
 
 def g:VimOpencodePopupScrollDownPage()
-  VimOpencodePopupScrollCurrent({'dir': 5})
+  g:VimOpencodePopupScrollCurrent({'dir': 5})
 enddef
 
 def g:VimOpencodePopupScrollUpPage()
-  VimOpencodePopupScrollCurrent({'dir': -5})
+  g:VimOpencodePopupScrollCurrent({'dir': -5})
 enddef
 
 def g:VimOpencodePopupScrollCurrent(info: dict<any>)

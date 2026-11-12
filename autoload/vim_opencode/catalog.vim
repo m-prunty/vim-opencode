@@ -272,15 +272,16 @@ def ListPopup(kind: string, items: any)
   endfor
   var title = 'OpenCode ' .. kind .. 's'
   var footer = 'C-Q close'
-  popup.Run({
+  var spec: dict<any> = {
     \ items: labels,
     \ title: title,
     \ border: 'rounded',
     \ width: 70,
     \ height: min([len(labels) + 4, 20]),
-    \ callback: (sel) => {},
+    \ callback: (sel: string) => {},
     \ footer: footer,
-    \ })
+    \ }
+  popup.Run(spec)
 enddef
 
 export def PickModel()

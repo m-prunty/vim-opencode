@@ -96,7 +96,7 @@ def PrintList(sessions: any)
     index += 1
   endfor
   var footer = 'Enter pick | C-P preview | C-Q quit'
-  popup.Run({
+  var spec: dict<any> = {
     \ items: lines,
     \ title: 'OpenCode sessions',
     \ border: 'rounded',
@@ -115,7 +115,8 @@ def PrintList(sessions: any)
       endif
     },
     \ footer: footer,
-    \ })
+    \ }
+  popup.Run(spec)
 enddef
 
 # Show a popup menu of cached sessions and open the chosen one.
@@ -136,7 +137,7 @@ def ShowPicker(sessions: any)
     index += 1
   endfor
   var footer = 'Enter pick | C-P preview | C-Q quit'
-  popup.Run({
+  var spec: dict<any> = {
     \ items: labels,
     \ title: 'OpenCode sessions',
     \ border: 'rounded',
@@ -155,7 +156,8 @@ def ShowPicker(sessions: any)
       endif
     },
     \ footer: footer,
-    \ })
+    \ }
+  popup.Run(spec)
 enddef
 
 # Open a session by id, numeric index or id prefix. With an empty token, follow

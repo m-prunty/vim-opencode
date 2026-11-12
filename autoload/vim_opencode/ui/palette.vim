@@ -91,31 +91,30 @@ export def Palette(info: dict<any>)
     i += 1
   endfor
   var footer = 'Enter run | C-P preview | C-H help | / filter | C-Q quit'
-  popup.Run({
-    \ spec: {
-      \ items: lines,
-      \ title: 'OpenCode palette',
-      \ border: 'rounded',
-      \ width: 74,
-      \ height: min([len(lines) + 4, 22]),
-      \ callback: (sel) => {
-        PaletteRunSelection({'selection': sel})
-      },
-      \ cancel: () => {
-        palette_state = {}
-      },
-      \ footer: footer,
-      \ keymaps: {
-        \ '/': funcref('g:PaletteStartFilter'),
-        \ 'C-h': funcref('g:PaletteHelp'),
-        \ 'C-p': funcref('g:PalettePreview'),
-        \ 'j': funcref('g:PaletteNext'),
-        \ 'k': funcref('g:PalettePrev'),
-        \ '<Down>': funcref('g:PaletteNext'),
-        \ '<Up>': funcref('g:PalettePrev'),
-        \ },
-      \ },
-    \ })
+  var spec: dict<any> = {
+    \ items: lines,
+    \ title: 'OpenCode palette',
+    \ border: 'rounded',
+    \ width: 74,
+    \ height: min([len(lines) + 4, 22]),
+    \ callback: (sel: string) => {
+      g:PaletteRunSelection({'selection': sel})
+    },
+    \ cancel: () => {
+      palette_state = {}
+    },
+    \ footer: footer,
+    \ keymaps: {
+    \   '/': funcref('g:PaletteStartFilter'),
+    \   'C-h': funcref('g:PaletteHelp'),
+    \   'C-p': funcref('g:PalettePreview'),
+    \   'j': funcref('g:PaletteNext'),
+    \   'k': funcref('g:PalettePrev'),
+    \   '<Down>': funcref('g:PaletteNext'),
+    \   '<Up>': funcref('g:PalettePrev'),
+    \ },
+    \ }
+  popup.Run(spec)
 enddef
 
 def g:PaletteRunSelection(info: dict<any>)
@@ -175,17 +174,16 @@ def g:PalettePreview(info: dict<any>)
   if usage !=# ''
     lines->add('usage: :Opencode ' .. usage)
   endif
-  popup.Run({
-    \ spec: {
-      \ items: lines,
-      \ title: 'Preview',
-      \ border: 'rounded',
-      \ width: 50,
-      \ height: min([len(lines) + 4, 10]),
-      \ callback: (sel) => {},
-      \ footer: 'C-Q close',
-      \ },
-    \ })
+  var pspec: dict<any> = {
+    \ items: lines,
+    \ title: 'Preview',
+    \ border: 'rounded',
+    \ width: 50,
+    \ height: min([len(lines) + 4, 10]),
+    \ callback: (sel: string) => {},
+    \ footer: 'C-Q close',
+    \ }
+  popup.Run(pspec)
 enddef
 
 def g:PaletteNext(info: dict<any>)
