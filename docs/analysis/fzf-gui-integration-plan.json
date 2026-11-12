@@ -14,7 +14,7 @@
       "description": "fzf.vim structure and popup/styling implementation analysis used as the design source."
     },
     "audience": "An engineer implementing styled popups, an interactive command palette, preview windows, and a show/peek key in vim-opencode, modeled on fzf.vim.",
-    "summary": "vim-opencode currently lists pickers with plain :echomsg / inputlist() / popup_menu() and has no single entry point reaching every :Opencode command. This plan adopts fzf.vim patterns from fzf_analysis.json (spec dict, highlight-group-derived colors via s:get_color/s:ansi/s:key_label, borders --list-border/--header-border/--info inline-right/--no-separator, preview window --preview/--preview-window, show/peek key ctrl-o via IPC fifo + win_execute, footer hints s:build_hint, layout keys window/up/down/left/right/popup/tmux) to converge on one or a few interactive window(s) that reach all commands. Work is split into six phases: foundation/style runner, styled pickers, command palette, preview windows, show/peek key, panel chrome + docs/tests.",
+    "summary": "vim-opencode currently lists pickers with plain :echomsg / inputlist() / popup_menu() and has no single entry point reaching every :Opencode command. This plan adopts fzf.vim patterns from fzf_analysis.json (spec dict, highlight-group-derived colors via s:get_color/s:ansi/s:key_label, borders --list-border/--header-border/--info inline-right/--no-separator, preview window --preview/--preview-window, show/peek key ctrl-o via IPC fifo + win_execute, footer hints s:build_hint, layout keys window/up/down/left/right/popup/tmux) to converge on one or a few interactive window(s) that reach every :Opencode command. Additions vs. the original plan: rounded/single/none popup borders (gui.popup_border, default rounded), scrolling (<C-e>/<C-y>/<PageUp>/<PageDown>/<C-d>/<C-u>) in popups and the transcript, a model-state status bar (idle/connected/thinking/error colored via style#get_color), default right-side panel placement (gui.default_position), and new opt-in compound shortcuts oo (:Opencode open) and oe (:Opencode ask @this explain). Work is split into six phases: foundation/style runner, styled pickers, command palette, preview windows, show/peek key, panel chrome + docs/tests.",
     "goal": "Smooth the GUI experience and provide an interactive window (or multiple) that can reach every :Opencode command, using fzf.vim popups and styling."
   },
   "current_ui": {
@@ -69,14 +69,17 @@
       "files": [
         "autoload/vim_opencode/ui/style.vim (new)",
         "autoload/vim_opencode/ui/popup.vim (new)",
-        "autoload/vim_opencode/config.vim (extend with gui.*)"
+        "autoload/vim_opencode/config.vim (extend with gui.*)",
+        "plugin/vim-opencode.vim (extend default keymaps)"
       ],
       "steps": [
-        "Add gui.* defaults + validation (popup_border, popup_title, footer_hint, preview_width, colors) to config.vim Defaults/Validate.",
+        "Add gui.* defaults + validation: gui.popup_border ('rounded' or 'none'/'single', default rounded when &ambiwidth single else single), gui.popup_title, gui.footer_hint, gui.preview_width, gui.colors, gui.default_position ('right' vertical split default, 'horizontal', 'popup').",
         "Create style.vim: style#get_color, style#ansi, color wrappers for VimOpencode* groups, style#key_label.",
-        "Create popup.vim vim_opencode#ui#popup#run(spec): bordered popup, title, footer, callback, preview, keymaps, inputlist() fallback."
+        "Create popup.vim vim_opencode#ui#popup#run(spec): bordered popup (rounded/single/none), title, footer, callback, preview, keymaps, inputlist() fallback.",
+        "Scrolling: map <C-e>/<C-y>/<PageUp>/<PageDown>/<C-d>/<C-u> inside popups and in the transcript window.",
+        "Add default compound keymaps (opt-in default_mappings): oo -> :Opencode open, oe -> :Opencode ask @this explain, keeping ot/op/oa/oh/oH; expose keymaps.open and keymaps.explain."
       ],
-      "acceptance": ":Opencode palette stub opens a bordered popup listing commands; no hard-coded colors; graceful fallback without +popupwin."
+      "acceptance": ":Opencode palette stub opens a bordered popup listing commands; popups scroll with <C-e>/<C-y>/<PageUp>/<PageDown>; no hard-coded colors; oo/oe mappings work when default_mappings: true; graceful fallback without +popupwin."
     },
     {
       "phase": 1,
@@ -145,10 +148,12 @@
       ],
       "steps": [
         "Add title bar + border + footer hint line to split panel (InfoChunk header rendered as chrome).",
+        "Scrolling: <C-e>/<C-y>/<PageUp>/<PageDown>/<C-d>/<C-u> scroll the transcript/output window.",
+        "Model-state status bar: color pill by state — idle (VimOpencodeMuted), connected/ready (VimOpencodeInfo), thinking/streaming (VimOpencodeReasoning), error/disconnected (VimOpencodeError), derived via style#get_color.",
         "Apply highlight-derived colors and key labels to panel mappings (q, ]m, [m, ]u, [u, <CR>, C-p, C-n).",
-        "Add fzf1/fzf2/fzf3-style statusline pill showing server/session/model while panel is open."
+        "Default right position: :Opencode open/toggle open the panel to the right (vertical split) unless gui.default_position is 'horizontal'/'popup' or an explicit target/panel.position overrides."
       ],
-      "acceptance": "Panel and popups share border/title/footer styling; statusline pill reflects connection state."
+      "acceptance": "Panel and popups share border/title/footer styling; statusline pill reflects connection/model state (idle/connected/thinking/error) with highlight-derived colors; panel opens right by default; scrolling works in transcript and popups."
     },
     {
       "phase": 6,
@@ -177,10 +182,10 @@
     "autoload/vim_opencode/sessions.vim": "edit - styled popups for session list/pick",
     "autoload/vim_opencode/permissions.vim": "edit - styled popup for pending permissions",
     "autoload/vim_opencode/commands.vim": "edit - register palette command + dispatch",
-    "autoload/vim_opencode/ui/panel.vim": "edit - panel title/border/footer chrome + statusline pill",
-    "plugin/vim-opencode.vim": "edit - default mapping <Leader>oc, palette highlight groups",
-    "doc/vim-opencode.txt": "edit - document GUI config, palette, pickers, preview, peek key",
-    "FEATURES.md": "edit - feature table + keymap additions",
+    "autoload/vim_opencode/ui/panel.vim": "edit - panel title/border/footer chrome + statusline pill + scrolling + right-default position",
+    "plugin/vim-opencode.vim": "edit - default mappings <Leader>oc (palette), <Leader>oo (open), <Leader>oe (ask @this explain), palette highlight groups",
+    "doc/vim-opencode.txt": "edit - document GUI config, palette, pickers, preview, peek key, shortcuts oo/oe, right-default position",
+    "FEATURES.md": "edit - feature table + keymap additions (oo, oe, palette, rounded borders, scrolling, status bar)",
     "test/": "add - headless smoke tests for popups/palette/pickers"
   },
   "risks": [
@@ -211,6 +216,9 @@
     "Colors are derived from Vim highlight groups (no hard-coded ANSI), honoring termguicolors/cterm.",
     "Preview pane shows context for the highlighted entry; show/peek key works without closing popups.",
     "Graceful fallback to inputlist() when +popupwin is unavailable.",
+    "Scrolling works in popups and the transcript (<C-e>/<C-y>/<PageUp>/<PageDown>/<C-d>/<C-u>).",
+    "Status bar pill reflects model state (idle/connected/thinking/error) with highlight-derived colors.",
+    "Panel opens to the right by default unless gui.default_position or an explicit target overrides.",
     "Plan + implementation committed on branch feature/gui-popup-styling-plan; tests pass."
   ],
   "references": [

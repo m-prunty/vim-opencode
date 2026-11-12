@@ -277,6 +277,8 @@ let g:vim_opencode_config = {
   \   prompt: '<Leader>op',
   \   ask: '<Leader>oa',
   \   toggle: '<Leader>ot',
+  \   open: '<Leader>oo',
+  \   explain: '<Leader>oe',
   \ },
   \}
 ```
@@ -287,9 +289,12 @@ let g:vim_opencode_config = {
 |----------|---------|-------------|
 | `<Leader>op` | `:Opencode prompt` | Send a prompt with context placeholders (most used) |
 | `<Leader>oa` | `:Opencode ask` | Interactively compose a prompt before sending |
+| `<Leader>oo` | `:Opencode open` | Open the conversation panel (right by default) |
+| `<Leader>oe` | `:Opencode ask @this explain` | Explain the current selection or cursor location |
 | `<Leader>ot` | `:Opencode toggle` | Show/hide the split panel |
 | `<Leader>oh` | `:Opencode help` | Open command reference |
 | `<Leader>oH` | `:Opencode health` | Verify environment and connection |
+ 
 
 ### Panel buffer-local shortcuts (active when panel is open)
 

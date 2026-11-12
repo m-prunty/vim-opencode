@@ -61,10 +61,12 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
 ## 5. Step-by-step implementation plan
 
 ### Phase 0 — Foundation & spec runner
-**Files:** `autoload/vim_opencode/ui/popup.vim` (new), `autoload/vim_opencode/ui/style.vim` (new), `autoload/vim_opencode/config.vim` (extend)
+**Files:** `autoload/vim_opencode/ui/popup.vim` (new), `autoload/vim_opencode/ui/style.vim` (new), `autoload/vim_opencode/config.vim` (extend), `plugin/vim-opencode.vim` (extend)
 
 1. Add a `gui` section to `Defaults`/`Validate` in `config.vim`:
-   - `gui.popup_border`, `gui.popup_title`, `gui.footer_hint`, `gui.preview_width`, `gui.colors` (enable/disable highlight-derived colors).
+   - `gui.popup_border` — border style: `'rounded'` (╭╮╰╯ ─ │) or `'none'`/`'single'` (`+|-|`), default `'rounded'` when `&ambiwidth` is single, else `'single'`.
+   - `gui.popup_title`, `gui.footer_hint`, `gui.preview_width`, `gui.colors` (enable/disable highlight-derived colors).
+   - `gui.default_position` — where `:Opencode open`/`:Opencode toggle` place the panel: `'right'` (vertical split on the right, default), `'horizontal'` (botright/belowright), `'popup'` (floating). Honors an explicit `open [input|output|panel]`/`close [target]` target and `panel.position` override.
 2. Create `style.vim` with fzf.vim-style helpers:
    - `style#get_color(attr, group...)` → gui/cterm color from a highlight group.
    - `style#ansi(str, group, default, bold)` → wrap a string in the group's fg/bg.
@@ -73,9 +75,14 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
 3. Create `popup.vim` with `vim_opencode#ui#popup#run(spec)`:
    - accepts `items`, `title`, `border`, `width`, `height`, `row`, `col`, `callback`, `preview`, `footer`, `keymaps`.
    - builds a `popup_create()` window with border/title, installs `<buffer>` mappings, runs the callback on selection, closes on `C-Q`.
-   - fallback: `inputlist()` when `+popupwin` is unavailable.
+   - **scrolling:** map `<C-e>`, `<C-y>`, `<PageUp>`, `<PageDown>`, `<C-d>`, `<C-u>` inside popups to scroll the popup contents (`popup_close`/`popup` navigation or `win_execute` on the popup winid with `normal! <C-e>` etc.); fall back to `inputlist()` when `+popupwin` is unavailable.
+4. Add default compound keymaps (opt-in via `default_mappings`):
+   - `oo` → `:Opencode open` (open panel)
+   - `oe` → `:Opencode ask @this explain` (explain selection/cursor)
+   - keep existing `ot` → toggle, `op` → prompt, `oa` → ask, `oh` → help, `oH` → health.
+   - expose under `keymaps.open`, `keymaps.explain` in config with defaults `<Leader>oo` / `<Leader>oe` (two-char sequences after `<Leader>o`).
 
-**Acceptance:** a `:Opencode palette` stub exists and opens a bordered popup listing commands; no hard-coded colors; falls back cleanly without `+popupwin`.
+**Acceptance:** a `:Opencode palette` stub exists and opens a bordered popup listing commands; popups scroll with `<C-e>`/`<C-y>`/`<PageUp>`/`<PageDown>`; no hard-coded colors; `oo`/`oe` mappings work when `default_mappings: true`; falls back cleanly without `+popupwin`.
 
 ### Phase 1 — Replace `inputlist()` pickers with styled popups
 **Files:** `autoload/vim_opencode/catalog.vim` (`ShowPicker`), `autoload/vim_opencode/sessions.vim` (list/pick), `autoload/vim_opencode/permissions.vim` (pending list)
@@ -126,17 +133,24 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
 **Files:** `autoload/vim_opencode/ui/panel.vim`, `autoload/vim_opencode/ui/diff.vim`, `plugin/vim-opencode.vim` (highlights)
 
 15. Add a title bar + border + footer hint line to the split panel (`InfoChunk()` already builds a header; render it as a title/footer with border highlights).
-16. Apply the same highlight-derived colors and key labels to panel mappings (`q`, `]m`, `[m`, `]u`, `[u`, `<CR>`, `C-p`, `C-n`) so panel, palette, and pickers look like one UI.
-17. Add a statusline pill (`fzf1`/`fzf2`/`fzf3`-style) showing server/session/model when the panel is open.
+16. **Scrolling:** ensure `<C-e>`/`<C-y>`/`<PageUp>`/`<PageDown>`/`<C-d>`/`<C-u>` scroll the transcript/output window when focus is there (and popups from Phase 0).
+17. **Model-state status bar:** color the panel/statusline pill based on server/session/model state:
+   - `idle` — muted/base (`VimOpencodeMuted`)
+   - `connected` / ready — green-ish (`VimOpencodeInfo`)
+   - `thinking` / streaming / tool running — yellow (`VimOpencodeReasoning`)
+   - `error` / disconnected — red (`VimOpencodeError`)
+   Derive the colors from highlight groups via `style#get_color` (never hard-code ANSI).
+18. Apply the same highlight-derived colors and key labels to panel mappings (`q`, `]m`, `[m`, `]u`, `[u`, `<CR>`, `C-p`, `C-n`) so panel, palette, and pickers look like one UI.
+19. **Default right position:** `:Opencode open` and `:Opencode toggle` open the panel to the **right** of the screen (vertical split) unless `gui.default_position` is `'horizontal'`/`'popup'` or an explicit target (`open [input|output|panel]` / `panel.position`) overrides it.
 
-**Acceptance:** panel and popups share border/title/footer styling; statusline pill reflects connection state.
+**Acceptance:** panel and popups share border/title/footer styling; statusline pill reflects connection/model state (idle/connected/thinking/error) with highlight-derived colors; panel opens to the right by default; scrolling works in transcript and popups.
 
 ### Phase 6 — Polish, config, docs, tests
 **Files:** `doc/vim-opencode.txt`, `FEATURES.md`, `test/`
 
-18. Document `gui.*` config options and the palette/picker/preview/peek keybindings in `doc/vim-opencode.txt` and `FEATURES.md`.
-19. Add headless smoke tests (in `test/`) for: popup open/close, picker selection, palette dispatch of a real command, fallback without `+popupwin`, show/peek behavior.
-20. Run `./test/run.sh` and fix regressions.
+21. Document `gui.*` config options and the palette/picker/preview/peek keybindings in `doc/vim-opencode.txt` and `FEATURES.md`.
+22. Add headless smoke tests (in `test/`) for: popup open/close, picker selection, palette dispatch of a real command, fallback without `+popupwin`, show/peek behavior.
+23. Run `./test/run.sh` and fix regressions.
 
 **Acceptance:** full test suite passes; help file documents all new GUI options and keys.
 
@@ -156,10 +170,10 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
 | `autoload/vim_opencode/sessions.vim` | edit | Styled popups for session list/pick. |
 | `autoload/vim_opencode/permissions.vim` | edit | Styled popup for pending permissions. |
 | `autoload/vim_opencode/commands.vim` | edit | Register `palette` command + dispatch. |
-| `autoload/vim_opencode/ui/panel.vim` | edit | Panel title/border/footer chrome + statusline pill. |
-| `plugin/vim-opencode.vim` | edit | Default mapping `<Leader>oc`, palette highlight groups. |
-| `doc/vim-opencode.txt` | edit | Document GUI config, palette, pickers, preview, peek key. |
-| `FEATURES.md` | edit | Feature table + keymap additions. |
+| `autoload/vim_opencode/ui/panel.vim` | edit | Panel title/border/footer chrome + statusline pill + scrolling + right-default position. |
+| `plugin/vim-opencode.vim` | edit | Default mappings `<Leader>oc` (palette), `<Leader>oo` (open), `<Leader>oe` (`ask @this explain`), palette highlight groups. |
+| `doc/vim-opencode.txt` | edit | Document GUI config, palette, pickers, preview, peek key, shortcuts `oo`/`oe`, right-default position. |
+| `FEATURES.md` | edit | Feature table + keymap additions (`oo`, `oe`, palette, rounded borders, scrolling, status bar). |
 | `test/` | add | Headless smoke tests for popups/palette/pickers. |
 
 ---
@@ -183,11 +197,32 @@ The analysis file describes fzf.vim at `/home/potz/rcs/vim/plugged/fzf.vim/fzf_a
 - [ ] Colors are derived from Vim highlight groups (no hard-coded ANSI), honoring `termguicolors`/`cterm`.
 - [ ] Preview pane shows context for the highlighted entry; show/peek key works without closing popups.
 - [ ] Graceful fallback to `inputlist()` when `+popupwin` is unavailable.
+- [ ] Scrolling works in popups and the transcript (`<C-e>`/`<C-y>`/`<PageUp>`/`<PageDown>`/`<C-d>`/`<C-u>`).
+- [ ] Status bar pill reflects model state (idle/connected/thinking/error) with highlight-derived colors.
+- [ ] Panel opens to the right by default unless `gui.default_position` or an explicit target overrides.
 - [ ] Plan + implementation committed on branch `feature/gui-popup-styling-plan`; tests pass.
 
 ---
 
-## 9. References
+## 9. Open questions for implementation
+
+Before coding, I'd like to confirm the following decisions:
+
+1. **`oo` / `oe` chord semantics:** The existing mappings are single keys after `<Leader>o` (e.g. `<Leader>ot` = toggle). `oo`/`oe` would be two-char chords after `<Leader>o` (e.g. `<Leader>oo`, `<Leader>oe`). Should these replace/extend the `keymaps` table as new keys `open`/`explain`, or should they be separate top-level `keymaps` entries? Vim's `maparg`/mapping resolution can be ambiguous with prefix chords (`<Leader>o` vs `<Leader>oo`), so confirm the intended table shape and whether `<Leader>o` itself should remain unmapped.
+
+2. **Rounded border feasibility:** `popup_create()` supports a `border` dict with `chars` (e.g. `['╭','─','╮','│','╯','─','╰','│']`). Rounded box-drawing glyphs render correctly only when `&ambiwidth` is single and the font/gui has the glyphs; on double-width ambiwidth or grids without box-drawing support they can misalign. Should the default be `'rounded'` only when `&ambiwidth == 'single'` (else `'single'`/`'+|-'`), with `gui.popup_border` to override? Are there terminals/fonts in scope where we should force `'none'`?
+
+3. **Status bar color trigger:** The panel/statusline pill colors by state (idle/connected/thinking/error). What Vim events/drivers set the `thinking` state — e.g. `session.status` / `prompt.sent` / `prompt.failed` / `server.connected` / `server.disconnected`? Should there be an explicit `gui.state` config override, or is it purely derived from `server.Status()`/SSE events?
+
+4. **Right-default vs existing `panel.position`:** `config.panel.position` defaults to `'botright'` (horizontal). The new `gui.default_position` defaults to `'right'` (vertical). When both are set, which wins? Proposed: `gui.default_position` wins for `:Opencode open`/`:Opencode toggle`; `panel.position` remains for direct split geometry. Confirm.
+
+5. **Scrolling implementation:** For popups, `popup_close`/re-create or `win_execute(popup_winid, 'normal! <C-e>')` can scroll contents. For the transcript window, plain window scroll mappings work. Should scrolling use `popup_setoptions`/`popup` navigation or `win_execute` + `normal!`? Any preference to keep the transcript at bottom (auto-scroll) while streaming, overriding manual scroll until the user scrolls up?
+
+6. **`<Leader>oc` palette vs `oo`/`oe`:** Both are opt-in default mappings. Is there a risk of chord collision (`<Leader>o` as a prefix for `c`, `o`, `e`, `t`, `p`, `a`, `h`, `H`)? Confirm the leader key users typically set and whether we should reserve `<Leader>o` exclusively for vim-opencode chords.
+
+---
+
+## 10. References
 
 - `/home/potz/rcs/vim/plugged/fzf.vim/fzf_analysis.json` — fzf.vim spec dict, styling helpers, borders, preview window, show/peek key, footer hints, key labels, layout keys.
 - `doc/vim-opencode.txt` — existing vim-opencode user documentation to extend.
