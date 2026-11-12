@@ -12,19 +12,19 @@ The project follows a V2-first, layered design:
 
 ## Status
 
-Early development. The current tree implements P0-P7: plugin loading,
+Early development. The current tree implements P0-P10: plugin loading,
 configuration, command dispatch, health checks, curl-backed HTTP transport,
 SSE event dispatch, server discovery, reconnecting connections, context
 placeholders, context-aware prompt/ask/operator workflows, a split-panel
-streaming transcript with an input buffer, and session listing, creation,
-selection, rename, fork and deletion. Permissions and diff review arrive in
+streaming transcript with an input buffer, session listing, creation,
 selection, rename, fork and deletion, model/agent catalogs, server commands,
 permission replies, single-file edit review, deduplicated rich context and
 review comments attached to prompts.
 It also includes a cancellable quick-chat inline-edit workflow, persistent
-project-scoped panel tabs, and a V1 protocol adapter. P10 hardening adds CI,
-message capping, assert_equal-style tests, transport error formatting, and
-config validation.
+project-scoped panel tabs, a V1 protocol adapter, and a GUI layer with styled
+popups, an interactive command palette, and keyframe styling. P10 hardening
+adds CI, message capping, assert_equal-style tests, transport error formatting,
+and config validation.
 
 See `docs/analysis/vim9-opencode-implementation-analysis.json` for the
 implementation plan and `doc/vim-opencode.txt` for user documentation.
