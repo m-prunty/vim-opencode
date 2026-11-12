@@ -100,14 +100,15 @@ def Submit(conn: any, session: any, text: string, ctx: dict<any>)
     return
   endif
 
-  v2.Prompt(conn, session_id, context.Render(text, ctx),
-    (result: any, status: number) => Succeeded(ctx, session_id),
+  var rendered = context.Render(text, ctx)
+  v2.Prompt(conn, session_id, rendered,
+    (result: any, status: number) => Succeeded(ctx, session_id, rendered),
     (message: string, exit: number, status: number) => Fail(ctx, message))
 enddef
 
-def Succeeded(ctx: dict<any>, session_id: string)
+def Succeeded(ctx: dict<any>, session_id: string, text: string)
   context.Clear(ctx)
-  events.EmitLocal('prompt.sent', {sessionID: session_id})
+  events.EmitLocal('prompt.sent', {sessionID: session_id, text: text})
   echomsg 'opencode9: prompt sent to session ' .. session_id
 enddef
 
