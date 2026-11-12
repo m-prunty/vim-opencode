@@ -144,15 +144,15 @@ def InstallPopupMappings(info: dict<any>): any
   var winid = get(info, 'winid', 0)
   var spec = get(info, 'spec', {})
   var base: dict<any> = {
-    \ '<CR>': funcref('VimOpencodePopupSelect'),
-    \ '<C-o>': funcref('VimOpencodePopupPeek'),
-    \ '<C-q>': funcref('VimOpencodePopupCloseById'),
-    \ '<C-e>': funcref('VimOpencodePopupScrollDown'),
-    \ '<C-y>': funcref('VimOpencodePopupScrollUp'),
-    \ '<PageDown>': funcref('VimOpencodePopupScrollDownPage'),
-    \ '<PageUp>': funcref('VimOpencodePopupScrollUpPage'),
-    \ '<C-d>': funcref('VimOpencodePopupScrollDownPage'),
-    \ '<C-u>': funcref('VimOpencodePopupScrollUpPage'),
+    \ '<CR>': funcref('g:VimOpencodePopupSelect'),
+    \ '<C-o>': funcref('g:VimOpencodePopupPeek'),
+    \ '<C-q>': funcref('g:VimOpencodePopupCloseById'),
+    \ '<C-e>': funcref('g:VimOpencodePopupScrollDown'),
+    \ '<C-y>': funcref('g:VimOpencodePopupScrollUp'),
+    \ '<PageDown>': funcref('g:VimOpencodePopupScrollDownPage'),
+    \ '<PageUp>': funcref('g:VimOpencodePopupScrollUpPage'),
+    \ '<C-d>': funcref('g:VimOpencodePopupScrollDownPage'),
+    \ '<C-u>': funcref('g:VimOpencodePopupScrollUpPage'),
   }
   var merged = deepcopy(base)
   for [key, val] in items(get(spec, 'keymaps', {}))
@@ -179,7 +179,7 @@ def g:VimOpencodePopupSelect()
   var items = get(spec, 'items', [])
   if idx >= 1 && idx <= len(items)
     var cb = get(spec, 'callback', v:null)
-    if type(cb) == v:func
+    if type(cb) == v:t_func
       call(cb, [items[idx - 1]])
     endif
   endif
@@ -200,7 +200,7 @@ def g:VimOpencodePopupPeek()
   var items = get(spec, 'items', [])
   if idx >= 1 && idx <= len(items)
     var cb = get(spec, 'callback', v:null)
-    if type(cb) == v:func
+    if type(cb) == v:t_func
       call(cb, [items[idx - 1]])
     endif
   endif
@@ -218,7 +218,7 @@ def g:VimOpencodePopupCloseById()
   var spec = get(g:vim_opencode_popup_specs, winid, {})
   unlet g:vim_opencode_popup_specs[winid]
   var cancel = get(spec, 'cancel', v:null)
-  if type(cancel) == v:func
+  if type(cancel) == v:t_func
     call(cancel, [])
   endif
 enddef
@@ -314,12 +314,12 @@ def RunInputlist(spec: dict<any>): number
   var choice = inputlist(prompt)
   if choice >= 1
     var cb = get(spec, 'callback', v:null)
-    if type(cb) == v:func
+    if type(cb) == v:t_func
       call(cb, [items[choice - 1]])
     endif
   else
     var cancel = get(spec, 'cancel', v:null)
-    if type(cancel) == v:func
+    if type(cancel) == v:t_func
       call(cancel, [])
     endif
   endif
