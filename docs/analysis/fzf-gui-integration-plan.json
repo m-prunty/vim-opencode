@@ -1,0 +1,225 @@
+{
+  "report": {
+    "title": "vim-opencode GUI smoothening plan (popups + styling from fzf.vim)",
+    "analyzed_at": "2026-11-12",
+    "branch": "feature/gui-popup-styling-plan",
+    "repository": {
+      "name": "vim-opencode",
+      "path": "/home/potz/rcs/vim/plugged/vim-opencode",
+      "description": "A Vim 9.1-native client for OpenCode (OpenCode V2 HTTP/SSE APIs)."
+    },
+    "reference": {
+      "file": "/home/potz/rcs/vim/plugged/fzf.vim/fzf_analysis.json",
+      "repository": "/home/potz/rcs/vim/plugged/fzf.vim",
+      "description": "fzf.vim structure and popup/styling implementation analysis used as the design source."
+    },
+    "audience": "An engineer implementing styled popups, an interactive command palette, preview windows, and a show/peek key in vim-opencode, modeled on fzf.vim.",
+    "summary": "vim-opencode currently lists pickers with plain :echomsg / inputlist() / popup_menu() and has no single entry point reaching every :Opencode command. This plan adopts fzf.vim patterns from fzf_analysis.json (spec dict, highlight-group-derived colors via s:get_color/s:ansi/s:key_label, borders --list-border/--header-border/--info inline-right/--no-separator, preview window --preview/--preview-window, show/peek key ctrl-o via IPC fifo + win_execute, footer hints s:build_hint, layout keys window/up/down/left/right/popup/tmux) to converge on one or a few interactive window(s) that reach all commands. Work is split into six phases: foundation/style runner, styled pickers, command palette, preview windows, show/peek key, panel chrome + docs/tests.",
+    "goal": "Smooth the GUI experience and provide an interactive window (or multiple) that can reach every :Opencode command, using fzf.vim popups and styling."
+  },
+  "current_ui": {
+    "panel": "Split transcript (output) + input windows, text-property highlights, buffer-local mappings (q, ]m, [m, ]u, [u, <CR>, C-p, C-n).",
+    "pickers": "catalog.vim ShowPicker uses popup_menu() with inputlist() fallback; sessions.List/Pick and permissions.Pending print :echomsg lines.",
+    "dispatch": "Single :Opencode command with -complete=customlist,g:VimOpencodeComplete; COMMANDS table maps names to handlers (P0-P10 phases).",
+    "highlights": "VimOpencodeInfo/Warn/Error/Muted/User/Tool/Reasoning defined in plugin/vim-opencode.vim.",
+    "config": "panel.{height,width,position,debounce_ms,max_messages}; no gui.* section yet.",
+    "limitations": "No borders/titles/footers on popups, no preview pane, no peek key, no unified command launcher, colors not derived from highlight groups."
+  },
+  "fzf_patterns_to_adopt": [
+    {
+      "element": "spec dict",
+      "fzf_reference": "autoload/fzf/vim.vim: source/options/sink/sink*/window/exit/_paste/_show/_hint merged into one s:fzf runner.",
+      "vim_opencode_use": "One vim_opencode#ui#popup#run(spec) runner for pickers, palette, preview; each surface builds a spec dict."
+    },
+    {
+      "element": "styling from highlight groups",
+      "fzf_reference": "s:get_color(attr, group...), s:csi(color, fg), s:ansi(str, group, default, bold), s:black/red/green/yellow/blue/magenta/cyan wrappers.",
+      "vim_opencode_use": "autoload/vim_opencode/ui/style.vim: derive popup border/title/entry colors from VimOpencode* groups via synIDattr(synIDtrans(hlID(group)), 'gui'|'cterm'), with termguicolors/cterm/16-color fallbacks; style#key_label for C-X/A-S."
+    },
+    {
+      "element": "borders",
+      "fzf_reference": "--list-border, --header-border inline, --info inline-right, --no-separator (Commands, Changes, Marks, Windows).",
+      "vim_opencode_use": "popup_create border chars, title bar, inline info line, separator control; consistent across panel, palette, pickers."
+    },
+    {
+      "element": "preview window",
+      "fzf_reference": "--preview + --preview-window (e.g. '+{2}/2' center on field); Colors spec.window tight popup; commit/git diff previews.",
+      "vim_opencode_use": "ui/preview.vim side preview: session messages/diff, model provider/model, command description/hint, permission request, diff text."
+    },
+    {
+      "element": "show / peek key",
+      "fzf_reference": "ctrl-o via s:can_show + s:add_hints + autoload/fzf/vim/ipc.vim fifo + win_execute; opens entry in origin window without closing fzf.",
+      "vim_opencode_use": "C-O binding on every popup; run highlighted entry handler in origin window via win_execute without closing the popup; same preconditions (terminal +patch-8.0.995, win_execute, not Win32)."
+    },
+    {
+      "element": "footer hints + key labels",
+      "fzf_reference": "s:build_hint (Enter Open, C-X HSplit, C-V VSplit, C-T Tab; magenta keys via Special), s:key_label (C-X, A-S, S-, Dbl-).",
+      "vim_opencode_use": "Every popup footer: Enter pick, C-P preview, C-Q quit, C-H help; consistent modifier labels."
+    },
+    {
+      "element": "layout keys",
+      "fzf_reference": "window/up/down/left/right (+ popup/tmux), g:fzf_layout fallback; s:can_show rejects enew/tabnew/tabedit/<tab> for show key.",
+      "vim_opencode_use": "popup layout width/height/row/col; fallback to split/inputlist when +popupwin unavailable."
+    }
+  ],
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Foundation & spec runner",
+      "files": [
+        "autoload/vim_opencode/ui/style.vim (new)",
+        "autoload/vim_opencode/ui/popup.vim (new)",
+        "autoload/vim_opencode/config.vim (extend with gui.*)"
+      ],
+      "steps": [
+        "Add gui.* defaults + validation (popup_border, popup_title, footer_hint, preview_width, colors) to config.vim Defaults/Validate.",
+        "Create style.vim: style#get_color, style#ansi, color wrappers for VimOpencode* groups, style#key_label.",
+        "Create popup.vim vim_opencode#ui#popup#run(spec): bordered popup, title, footer, callback, preview, keymaps, inputlist() fallback."
+      ],
+      "acceptance": ":Opencode palette stub opens a bordered popup listing commands; no hard-coded colors; graceful fallback without +popupwin."
+    },
+    {
+      "phase": 1,
+      "name": "Styled pickers (replace inputlist()/popup_menu())",
+      "files": [
+        "autoload/vim_opencode/catalog.vim (ShowPicker)",
+        "autoload/vim_opencode/sessions.vim (list/pick)",
+        "autoload/vim_opencode/permissions.vim (pending list)"
+      ],
+      "steps": [
+        "Convert catalog.vim model/agent/command pickers to styled popups with title + footer hint (Enter pick / C-P preview / C-Q quit).",
+        "Convert sessions.List/Pick and permissions.Pending to the same styled runner.",
+        "Add preview callbacks: session latest message, model provider/model, command description/hint."
+      ],
+      "acceptance": "model pick, agent pick, command pick, session pick, permission list open bordered titled popups with footer hints; inputlist() fallback retained."
+    },
+    {
+      "phase": 2,
+      "name": "Interactive command palette (reach all commands)",
+      "files": [
+        "autoload/vim_opencode/commands.vim (register palette + dispatch)",
+        "autoload/vim_opencode/ui/palette.vim (new)",
+        "plugin/vim-opencode.vim (default mapping <Leader>oc)"
+      ],
+      "steps": [
+        "Register palette in COMMANDS and wire Dispatch() to palette.Palette().",
+        "Build palette.vim: flattened source of all COMMANDS + sub-actions (session/model/agent/command/permission/diff/review/tab), as-you-type fuzzy filter, Enter run, C-P preview, C-Q close, C-H help, jk/↑↓ navigate, MRU.",
+        "Add opt-in <Leader>oc mapping consistent with existing default_mappings/keymaps."
+      ],
+      "acceptance": "One palette popup launches every :Opencode command and sub-action without leaving normal mode."
+    },
+    {
+      "phase": 3,
+      "name": "Preview windows (fzf --preview / --preview-window)",
+      "files": [
+        "autoload/vim_opencode/ui/preview.vim (new)",
+        "autoload/vim_opencode/ui/popup.vim (extend)"
+      ],
+      "steps": [
+        "Add preview support to popup runner: second popup/split showing context for highlighted entry.",
+        "Preview providers: session messages/diff, model key/provider/modelID, command description+hint, permission request, diff text (reuse diff.vim).",
+        "Center preview on matched field where applicable (analogous to '+{2}/2')."
+      ],
+      "acceptance": "Moving the picker/palette cursor updates a side preview without closing the list."
+    },
+    {
+      "phase": 4,
+      "name": "Show / peek key (fzf ctrl-o)",
+      "files": [
+        "autoload/vim_opencode/ui/popup.vim (extend)",
+        "autoload/vim_opencode/ui/ipc.vim (optional new)"
+      ],
+      "steps": [
+        "Add C-O show_key to every popup; run highlighted entry handler in origin window via win_execute(origin_winid, ...) without closing popup.",
+        "Guard with s:can_show-style preconditions (terminal +patch-8.0.995, win_execute, not Win32, no bang/fullscreen)."
+      ],
+      "acceptance": "C-O in a picker opens the selected session/model/command in the editing window while the popup stays open."
+    },
+    {
+      "phase": 5,
+      "name": "Panel chrome & consistent styling",
+      "files": [
+        "autoload/vim_opencode/ui/panel.vim",
+        "autoload/vim_opencode/ui/diff.vim",
+        "plugin/vim-opencode.vim"
+      ],
+      "steps": [
+        "Add title bar + border + footer hint line to split panel (InfoChunk header rendered as chrome).",
+        "Apply highlight-derived colors and key labels to panel mappings (q, ]m, [m, ]u, [u, <CR>, C-p, C-n).",
+        "Add fzf1/fzf2/fzf3-style statusline pill showing server/session/model while panel is open."
+      ],
+      "acceptance": "Panel and popups share border/title/footer styling; statusline pill reflects connection state."
+    },
+    {
+      "phase": 6,
+      "name": "Polish, config, docs, tests",
+      "files": [
+        "doc/vim-opencode.txt",
+        "FEATURES.md",
+        "test/"
+      ],
+      "steps": [
+        "Document gui.* options, palette, pickers, preview, peek keybindings in doc/vim-opencode.txt and FEATURES.md.",
+        "Add headless smoke tests: popup open/close, picker selection, palette dispatch, fallback without +popupwin, show/peek.",
+        "Run ./test/run.sh and fix regressions."
+      ],
+      "acceptance": "Full test suite passes; help file documents all new GUI options and keys."
+    }
+  ],
+  "file_map": {
+    "autoload/vim_opencode/ui/style.vim": "new - highlight-group -> color helpers (fzf s:get_color/s:ansi/s:key_label model)",
+    "autoload/vim_opencode/ui/popup.vim": "new - generic bordered popup runner with footer, preview, keymaps, inputlist() fallback",
+    "autoload/vim_opencode/ui/palette.vim": "new - interactive command palette reaching all :Opencode commands",
+    "autoload/vim_opencode/ui/preview.vim": "new - side preview providers for picker/palette entries",
+    "autoload/vim_opencode/ui/ipc.vim": "optional new - show/peek key via fifo + win_execute (fzf ipc.vim model)",
+    "autoload/vim_opencode/config.vim": "edit - gui.* defaults + validation",
+    "autoload/vim_opencode/catalog.vim": "edit - styled popups for model/agent/command pickers",
+    "autoload/vim_opencode/sessions.vim": "edit - styled popups for session list/pick",
+    "autoload/vim_opencode/permissions.vim": "edit - styled popup for pending permissions",
+    "autoload/vim_opencode/commands.vim": "edit - register palette command + dispatch",
+    "autoload/vim_opencode/ui/panel.vim": "edit - panel title/border/footer chrome + statusline pill",
+    "plugin/vim-opencode.vim": "edit - default mapping <Leader>oc, palette highlight groups",
+    "doc/vim-opencode.txt": "edit - document GUI config, palette, pickers, preview, peek key",
+    "FEATURES.md": "edit - feature table + keymap additions",
+    "test/": "add - headless smoke tests for popups/palette/pickers"
+  },
+  "risks": [
+    {
+      "risk": "+popupwin / popup_create() missing on older Vim 9.1 builds",
+      "mitigation": "Guard with has('popupwin')/exists('*popup_create()'); fall back to inputlist()/:echomsg."
+    },
+    {
+      "risk": "Hard-coded colors clash with colorschemes",
+      "mitigation": "Derive from highlight groups via style#get_color; gui.colors = 0 to disable."
+    },
+    {
+      "risk": "Popup mappings interfere with buffer-local mappings",
+      "mitigation": "<buffer>-scoped mappings inside popup only; restore focus to origin window on close."
+    },
+    {
+      "risk": "Async peek blocks Vim",
+      "mitigation": "Keep peek sync; job_start/timer only for network/preview work; never sleep."
+    },
+    {
+      "risk": "Long command lists slow the popup",
+      "mitigation": "Cap palette source; fuzzy filter incrementally; lazy-load server catalogs."
+    }
+  ],
+  "success_criteria": [
+    "One interactive palette popup can reach every :Opencode command and sub-action.",
+    "All pickers (model, agent, command, session, permission) are styled bordered popups with footer hints.",
+    "Colors are derived from Vim highlight groups (no hard-coded ANSI), honoring termguicolors/cterm.",
+    "Preview pane shows context for the highlighted entry; show/peek key works without closing popups.",
+    "Graceful fallback to inputlist() when +popupwin is unavailable.",
+    "Plan + implementation committed on branch feature/gui-popup-styling-plan; tests pass."
+  ],
+  "references": [
+    "/home/potz/rcs/vim/plugged/fzf.vim/fzf_analysis.json",
+    "/home/potz/rcs/vim/plugged/vim-opencode/doc/vim-opencode.txt",
+    "/home/potz/rcs/vim/plugged/vim-opencode/FEATURES.md",
+    "/home/potz/rcs/vim/plugged/vim-opencode/plugin/vim-opencode.vim",
+    "/home/potz/rcs/vim/plugged/vim-opencode/autoload/vim_opencode/commands.vim",
+    "/home/potz/rcs/vim/plugged/vim-opencode/autoload/vim_opencode/catalog.vim",
+    "/home/potz/rcs/vim/plugged/vim-opencode/autoload/vim_opencode/ui/panel.vim"
+  ]
+}
