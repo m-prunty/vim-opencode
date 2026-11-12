@@ -19,6 +19,7 @@ import autoload 'opencode9/config.vim' as config
 import autoload 'opencode9/commands.vim' as commands
 import autoload 'opencode9/prompt.vim' as prompt
 import autoload 'opencode9/server.vim' as server
+import autoload 'opencode9/ui/panel.vim' as panel
 
 def g:Opencode9Shutdown()
   server.Shutdown()
@@ -53,6 +54,9 @@ highlight default link Opencode9Info MoreMsg
 highlight default link Opencode9Warn WarningMsg
 highlight default link Opencode9Error ErrorMsg
 highlight default link Opencode9Muted Comment
+highlight default link Opencode9User Identifier
+highlight default link Opencode9Tool Function
+highlight default link Opencode9Reasoning Comment
 
 # Stable plugin entry points. Users can map these without depending on defaults.
 nnoremap <silent> <Plug>(opencode9-help) <Cmd>Opencode help<CR>
@@ -72,6 +76,7 @@ if get(g:opencode9_config, 'default_mappings', false)
     health: '<Plug>(opencode9-health)',
     prompt: '<Plug>(opencode9-prompt)',
     ask: '<Plug>(opencode9-ask)',
+    toggle: '<Plug>(opencode9-toggle)',
   }
   var keymaps = get(g:opencode9_config, 'keymaps', {})
   for [action, plug] in items(mappings)
@@ -81,6 +86,8 @@ if get(g:opencode9_config, 'default_mappings', false)
     endif
   endfor
 endif
+
+panel.Setup()
 
 augroup opencode9
   autocmd!
