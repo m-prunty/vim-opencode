@@ -24,8 +24,8 @@ panel, permissions and diff review.
 
 This help file describes the current walking skeleton: configuration, command
 dispatch, server discovery, transport, SSE events, context-aware prompts and
-a split-panel transcript. Commands marked with a phase such as (P4) are
-reserved and report that they are not implemented yet.
+a split-panel transcript. Commands marked with a phase such as (P4) indicate
+the implementation phase; commands without a phase marker are reserved.
 
 ==============================================================================
 2. REQUIREMENTS                                             *vim-opencode-requirements*
@@ -415,7 +415,7 @@ The info header at the top of the transcript shows the active server, working
 directory, session and model. It updates as events arrive.
 
 ==============================================================================
-8. FUNCTIONS                                                 *vim-opencode-functions*
+9. FUNCTIONS                                                 *vim-opencode-functions*
 
 The public function surface follows the command surface. Each action will be
 available as both an Ex command and a function so mappings and integrations do

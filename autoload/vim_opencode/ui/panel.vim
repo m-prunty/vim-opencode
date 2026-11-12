@@ -91,7 +91,6 @@ export def Open()
   execute 'buffer ' .. output_buf
   ApplyOutputWindowOptions()
   ApplyStatusline()
-  ApplyStatusline()
 
   execute 'belowright split'
   execute 'resize ' .. INPUT_HEIGHT
