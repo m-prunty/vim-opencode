@@ -8,8 +8,9 @@ CONTENTS                                                     *opencode9-contents
   3. Commands ............................ |opencode9-commands|
   4. Configuration ....................... |opencode9-configuration|
   5. Events .............................. |opencode9-events|
-  6. Functions ........................... |opencode9-functions|
-  7. Development ......................... |opencode9-development|
+  6. Panel ............................... |opencode9-panel|
+  7. Functions ........................... |opencode9-functions|
+  8. Development ......................... |opencode9-development|
 
 ==============================================================================
 1. INTRODUCTION                                             *opencode9-introduction*
@@ -20,9 +21,9 @@ The UI is added in layers: prompt and context workflows first, then a split
 panel, permissions and diff review.
 
 This help file describes the current walking skeleton: configuration, command
-dispatch, server discovery, transport, SSE events and context-aware prompts.
-Commands marked with a phase such as (P3) are reserved and report that they
-are not implemented yet.
+dispatch, server discovery, transport, SSE events, context-aware prompts and
+a split-panel transcript. Commands marked with a phase such as (P4) are
+reserved and report that they are not implemented yet.
 
 ==============================================================================
 2. REQUIREMENTS                                             *opencode9-requirements*
@@ -70,8 +71,8 @@ operator [text]         Set 'operatorfunc' and wait for a motion; the selected
                         range is sent with the text (default @this).
 context ...             Inspect or clear captured context. (P2)
 toggle                  Toggle the conversation panel. (P3)
-open ...                Open the input, output or panel window. (P3)
-close ...               Close a panel window. (P3)
+open [target]           Open the input, output or panel window. (P3)
+close [target]          Close a panel window. (P3)
 permission ...          Accept or deny pending requests. (P5)
 diff ...                Review the active edit diff. (P5)
 quickchat               Replace the current range in place. (P7)
@@ -234,7 +235,52 @@ The plugin also emits local events:
   OpencodeEvent:prompt.failed        Prompt failed; data.message.
 
 ==============================================================================
-6. FUNCTIONS                                                 *opencode9-functions*
+6. PANEL                                                       *opencode9-panel*
+
+The split panel shows a streaming transcript of the conversation above an
+input buffer. Open it with |:Opencode| toggle, |:Opencode| open or
+|:Opencode| open panel.
+
+                                                              *opencode9-panel-layout*
+The panel is a horizontal split. The top window holds the read-only
+transcript; the bottom window holds a three-line input buffer. The panel
+respects |g:opencode9_config| panel settings (height, position, debounce_ms).
+
+                                                              *opencode9-panel-commands*
+:Opencode toggle          Show or hide the whole panel.
+:Opencode open            Open the full panel (transcript + input).
+:Opencode open input      Open only the input window.
+:Opencode open output     Open only the transcript window.
+:Opencode open panel      Open the full panel.
+:Opencode close           Close the whole panel.
+:Opencode close input     Close only the input window.
+:Opencode close output    Close only the transcript window.
+:Opencode close panel     Close the whole panel.
+
+                                                              *opencode9-panel-mappings*
+In the transcript window:
+
+  <CR>                  Jump to the file location under the cursor.
+  q                     Close the panel.
+  ]m                    Jump to the next message start.
+  [m                    Jump to the previous message start.
+  ]u                    Jump to the next user message.
+  [u                    Jump to the previous user message.
+
+In the input window:
+
+  <CR>                  Submit the draft as a prompt.
+  <C-p>                 Previous draft from history.
+  <C-n>                 Next draft from history.
+
+                                                              *opencode9-panel-streaming*
+Server-sent events (session.text.delta, session.tool.*, session.step.*) are
+applied to the transcript model and rendered on a debounce timer, so the
+editor never blocks while tokens stream in. Scrolling up is preserved: new
+content only jumps to the bottom when the view was already at the bottom.
+
+==============================================================================
+7. FUNCTIONS                                                 *opencode9-functions*
 
 The public function surface follows the command surface. Each action will be
 available as both an Ex command and a function so mappings and integrations do
@@ -242,7 +288,7 @@ not need to parse command strings. Names are finalized with the phase that
 implements them.
 
 ==============================================================================
-7. DEVELOPMENT                                             *opencode9-development*
+8. DEVELOPMENT                                             *opencode9-development*
 
 Run the headless smoke tests from the repository root:
 
