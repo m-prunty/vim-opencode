@@ -29,6 +29,9 @@ enddef
 export def Text(): string
   var lines: list<string> = []
   for item in comments
+    if item.stale
+      continue
+    endif
     var file = item.file
     var cwd = util.Cwd()
     if stridx(file, cwd .. '/') == 0
@@ -46,5 +49,10 @@ export def MarkSent()
 enddef
 
 export def AddCurrent(text: string): string
-  return Add(expand('%:p'), line('.'), text)
+  var file = expand('%:p')
+  if file ==# ''
+    util.EchoError('review add requires a file buffer')
+    return ''
+  endif
+  return Add(file, line('.'), text)
 enddef
