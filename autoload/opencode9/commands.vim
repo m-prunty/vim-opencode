@@ -8,6 +8,7 @@ import autoload 'opencode9/context.vim' as context
 import autoload 'opencode9/discovery.vim' as discovery
 import autoload 'opencode9/health.vim' as health
 import autoload 'opencode9/prompt.vim' as prompt
+import autoload 'opencode9/quickchat.vim' as quickchat
 import autoload 'opencode9/permissions.vim' as permissions
 import autoload 'opencode9/server.vim' as server
 import autoload 'opencode9/sessions.vim' as sessions
@@ -37,7 +38,7 @@ const COMMANDS: dict<dict<any>> = {
   permission: {phase: 'P5', usage: 'permission [list|accept|always|accept_all|deny|ask]', description: 'Answer pending permission requests', implemented: true},
   diff: {phase: 'P5', usage: 'diff [open|accept|reject|close]', description: 'Review the active edit diff', implemented: true},
   review: {phase: 'P6', usage: 'review [list|add|clear]', description: 'Manage review comments', implemented: true},
-  quickchat: {phase: 'P7', usage: 'quickchat', description: 'Edit the current range in place', implemented: false},
+  quickchat: {phase: 'P7', usage: 'quickchat [instruction]', description: 'Edit the current range in place', implemented: true},
   debug: {phase: 'P10', usage: 'debug [on|off|dump]', description: 'Inspect plugin state', implemented: false},
 }
 
@@ -93,6 +94,8 @@ export def Dispatch(args: string, range: list<number>, bang: bool)
       Diff(rest)
     elseif name ==# 'review'
       Review(rest)
+    elseif name ==# 'quickchat'
+      quickchat.Start(trim(rest), range)
     elseif name ==# 'prompt'
       PromptCommand(rest, range)
     elseif name ==# 'ask'

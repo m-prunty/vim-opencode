@@ -134,6 +134,10 @@ export def DeleteSession(conn: any, session_id: string, on_success: any, on_erro
     on_error)
 enddef
 
+export def InterruptSession(conn: any, session_id: string, on_success: any, on_error: any): number
+  return conn.Request('/api/session/' .. util.UrlEncode(session_id) .. '/interrupt', 'POST', {}, on_success, on_error)
+enddef
+
 export def ForkSession(conn: any, session_id: string, on_success: any, on_error: any): number
   return conn.Request(
     '/api/session/' .. util.UrlEncode(session_id) .. '/fork',

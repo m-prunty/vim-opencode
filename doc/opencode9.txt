@@ -79,6 +79,8 @@ permission ...          List, accept, deny or answer pending requests.
 diff ...                Open, accept, reject or close the active edit diff.
 review ...              List, add or clear review comments. Comments are
                         attached to the next prompt.
+quickchat [instruction] Replace the current range with a focused assistant
+                        response. The replacement is whole-line and undoable.
 quickchat               Replace the current range in place. (P7)
 debug ...               Inspect plugin state. (P10)
 
